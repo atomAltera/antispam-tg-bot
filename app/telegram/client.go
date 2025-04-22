@@ -113,11 +113,13 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 		"text", update.Message.Text,
 	)
 	msg := e.Message{
-		Source:       e.SourceTelegram,
-		ID:           takeMessageID(update.Message),
-		ChatID:       takeChatID(update.Message.Chat),
-		SenderUserID: takeUserID(update.Message.From),
-		Text:         update.Message.Text,
+		Sender: e.User{
+			Source: e.SourceTelegram,
+			ChatID: takeChatID(update.Message.Chat),
+			ID:     takeUserID(update.Message.From),
+		},
+		ID:   takeMessageID(update.Message),
+		Text: update.Message.Text,
 	}
 
 	act, err := c.Handler.HandleMessage(ctx, msg)

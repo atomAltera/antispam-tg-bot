@@ -2,18 +2,11 @@ package moderator
 
 import (
 	"context"
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
 	"nuclight.org/antispam-tg-bot/pkg/logger"
 )
-
-var noop = e.Action{
-	Kind: e.ActionKindNoop,
-	Note: "",
-}
 
 // Handler is a handler of new messages. It decides what to do with a message
 // based on the score system for each user. New user receives a default score.
@@ -35,15 +28,19 @@ type Handler struct {
 
 	// BanScore is a score for a banned user
 	BanScore int
+
+	// ScoreStore is a store for user scores
+	ScoreStore ScoreStore
+
+	// MessagesStore is a store for messages
+	MessagesStore MessagesStore
 }
 
 // HandleMessage handles a message, it takes a message, reviews it and returns an action to be taken
 // based on the score system. It returns an action and an error if something goes wrong. Returned
 // action has to be considered even if error is not nil.
 func (h *Handler) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
-	userKey := buildUserKeyFromMessage(msg.Source, msg.ChatID, msg.SenderUserID)
-
-	score, err := h.getScore(ctx, userKey, h.DefaultScore)
+	score, err := h.ScoreStore.GetScore(ctx, msg.Sender, h.DefaultScore)
 	if err != nil {
 		return noop, fmt.Errorf("getting user score: %w", err)
 	}
@@ -57,6 +54,11 @@ func (h *Handler) HandleMessage(ctx context.Context, msg e.Message) (e.Action, e
 			Kind: e.ActionKindBan,
 			Note: fmt.Sprintf("user score is %d, while ban score is %d", score, h.BanScore),
 		}, nil
+	}
+
+	messageID, err := h.MessagesStore.SaveMessage(ctx, msg)
+	if err != nil {
+		return noop, fmt.Errorf("saving message: %w", err)
 	}
 
 	isSpam, err := h.checkSpam(ctx, msg.Text)
@@ -79,7 +81,12 @@ func (h *Handler) HandleMessage(ctx context.Context, msg e.Message) (e.Action, e
 			}
 		}
 
-		err = h.setScore(ctx, userKey, newScore)
+		err = h.MessagesStore.SaveAction(ctx, messageID, action)
+		if err != nil {
+			return action, fmt.Errorf("saving action: %w", err)
+		}
+
+		err = h.ScoreStore.SetScore(ctx, msg.Sender, newScore)
 		if err != nil {
 			return action, fmt.Errorf("setting user score: %w", err)
 		}
@@ -88,7 +95,7 @@ func (h *Handler) HandleMessage(ctx context.Context, msg e.Message) (e.Action, e
 	}
 
 	newScore := score + 1
-	err = h.setScore(ctx, userKey, newScore)
+	err = h.ScoreStore.SetScore(ctx, msg.Sender, newScore)
 	if err != nil {
 		return noop, fmt.Errorf("setting user score: %w", err)
 	}
@@ -96,13 +103,22 @@ func (h *Handler) HandleMessage(ctx context.Context, msg e.Message) (e.Action, e
 	return noop, nil
 }
 
-func buildUserKeyFromMessage(src e.Source, chatID, userID string) string {
-	hash := sha1.New()
-	hash.Write([]byte(src))
-	hash.Write([]byte(chatID))
-	hash.Write([]byte(userID))
+func (h *Handler) checkSpam(ctx context.Context, text string) (bool, error) {
+	// TODO: implement this
+	return true, nil
+}
 
-	digest := hash.Sum(nil)
+type ScoreStore interface {
+	GetScore(ctx context.Context, sender e.User, defaultValue int) (int, error)
+	SetScore(ctx context.Context, sender e.User, score int) error
+}
 
-	return hex.EncodeToString(digest[:16])
+type MessagesStore interface {
+	SaveMessage(ctx context.Context, msg e.Message) (int64, error)
+	SaveAction(ctx context.Context, messageID int64, action e.Action) error
+}
+
+var noop = e.Action{
+	Kind: e.ActionKindNoop,
+	Note: "",
 }

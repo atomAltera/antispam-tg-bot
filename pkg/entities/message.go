@@ -1,11 +1,15 @@
 package entities
 
+type User struct {
+	Source Source
+	ID     string
+	ChatID string
+}
+
 type Message struct {
-	Source       Source
-	ID           string
-	ChatID       string
-	SenderUserID string
-	Text         string
+	Sender User
+	ID     string
+	Text   string
 }
 
 type Source string
