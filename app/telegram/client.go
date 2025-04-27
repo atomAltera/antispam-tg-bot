@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -124,6 +125,7 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 		Sender: e.User{
 			Source:    e.SourceTelegram,
 			ID:        takeUserID(update.Message.From),
+			Name:      takeUserName(update.Message.From),
 			ChatID:    takeChatID(update.Message.Chat),
 			ChatTitle: update.Message.Chat.Title,
 		},
@@ -195,4 +197,38 @@ func takeChatID(chat *tgbotapi.Chat) string {
 
 func takeUserID(user *tgbotapi.User) string {
 	return strconv.FormatInt(user.ID, 10)
+}
+
+func takeUserName(user *tgbotapi.User) string {
+	var sb strings.Builder
+
+	if user.FirstName != "" {
+		sb.WriteString(user.FirstName)
+	}
+
+	if user.LastName != "" {
+		if sb.Len() > 0 {
+			sb.WriteRune(' ')
+		}
+		sb.WriteString(user.LastName)
+	}
+
+	if user.UserName != "" {
+		if sb.Len() > 0 {
+			sb.WriteRune(' ')
+			sb.WriteRune('(')
+			sb.WriteRune('@')
+			sb.WriteString(user.UserName)
+			sb.WriteRune(')')
+		} else {
+			sb.WriteRune('@')
+			sb.WriteString(user.UserName)
+		}
+	}
+
+	if sb.Len() == 0 {
+		return takeUserID(user)
+	}
+
+	return sb.String()
 }

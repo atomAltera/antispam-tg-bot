@@ -58,11 +58,11 @@ func (c *SQLite) GetScore(ctx context.Context, user e.User, defaultValue int) (i
 func (c *SQLite) SetScore(ctx context.Context, user e.User, score int) error {
 	_, err := c.db.ExecContext(
 		ctx,
-		`INSERT INTO scores (source, chat_id, user_id, score, updated_at)
-			VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) 
+		`INSERT INTO scores (source, chat_id, user_id, user_name, score, updated_at)
+			VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) 
 			ON CONFLICT(source, chat_id, user_id) DO UPDATE 
 			    SET score = ?, updated_at = CURRENT_TIMESTAMP`,
-		user.Source, user.ChatID, user.ID, score, score,
+		user.Source, user.ChatID, user.ID, user.Name, score, score,
 	)
 	return err
 }
@@ -84,11 +84,11 @@ func (c *SQLite) SaveMessage(ctx context.Context, msg e.Message) (int64, error) 
 	result, err := c.db.ExecContext(
 		ctx,
 		`INSERT INTO messages (
-			source, message_id, chat_id, sender_user_id, text, created_at, action, action_note
+			source, message_id, chat_id, sender_user_id, sender_user_name, text, created_at, action, action_note
 		) VALUES (
-			?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, NULL
+			?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, NULL
 		)`,
-		msg.Sender.Source, msg.ID, msg.Sender.ChatID, msg.Sender.ID, msg.Text,
+		msg.Sender.Source, msg.ID, msg.Sender.ChatID, msg.Sender.ID, msg.Sender.Name, msg.Text,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("inserting message: %w", err)

@@ -100,6 +100,11 @@ func (h *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Act
 		return action, nil
 	}
 
+	err = h.MessagesStore.SaveAction(ctx, messageID, noop)
+	if err != nil {
+		return noop, fmt.Errorf("saving action: %w", err)
+	}
+
 	newScore := score + 1
 	err = h.ScoreStore.SetScore(ctx, msg.Sender, newScore)
 	if err != nil {
