@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS messages
     text             TEXT      NOT NULL,
     created_at       TIMESTAMP NOT NULL,
     action           TEXT      NULL,
-    action_note      TEXT      NULL
+    action_note      TEXT      NULL,
+    error            TEXT      NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);

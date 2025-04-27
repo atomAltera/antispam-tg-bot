@@ -51,8 +51,8 @@ func main() {
 
 	moderatingSrv := &services.ModeratingSrv{
 		Log:           log,
-		DefaultScore:  -3,
-		TrustedScore:  0,
+		DefaultScore:  0,
+		TrustedScore:  10,
 		BanScore:      -4,
 		ScoreStore:    db,
 		MessagesStore: db,

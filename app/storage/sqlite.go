@@ -113,6 +113,16 @@ func (c *SQLite) SaveAction(ctx context.Context, messageID int64, action e.Actio
 	return err
 }
 
+func (c *SQLite) SaveError(ctx context.Context, messageID int64, error string) error {
+	_, err := c.db.ExecContext(
+		ctx,
+		`UPDATE messages SET error = ? WHERE id = ?`,
+		error,
+		messageID,
+	)
+	return err
+}
+
 //go:embed init.sql
 var initQuery string
 

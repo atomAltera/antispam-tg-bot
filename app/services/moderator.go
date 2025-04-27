@@ -44,93 +44,88 @@ type ModeratingSrv struct {
 // HandleMessage handles a message, it takes a message, reviews it and returns an action to be taken
 // based on the score system. It returns an action and an error if something goes wrong. Returned
 // action has to be considered even if error is not nil.
-func (h *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
-	score, err := h.ScoreStore.GetScore(ctx, msg.Sender, h.DefaultScore)
+func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
+	score, err := s.ScoreStore.GetScore(ctx, msg.Sender, s.DefaultScore)
 	if err != nil {
 		return noop, fmt.Errorf("getting user score: %w", err)
 	}
 
-	if score >= h.TrustedScore {
+	if score >= s.TrustedScore {
 		return noop, nil
 	}
 
-	if score <= h.BanScore {
-		return e.Action{
-			Kind: e.ActionKindBan,
-			Note: fmt.Sprintf("user score is %d, while ban score is %d", score, h.BanScore),
-		}, nil
-	}
-
-	messageID, err := h.MessagesStore.SaveMessage(ctx, msg)
+	messageID, err := s.MessagesStore.SaveMessage(ctx, msg)
 	if err != nil {
 		return noop, fmt.Errorf("saving message: %w", err)
 	}
 
-	isSpam, err := h.checkSpam(ctx, msg.Text)
+	action, delta, err := s.getAction(ctx, score, msg)
 	if err != nil {
-		return noop, fmt.Errorf("checking spam: %w", err)
+		_ = s.MessagesStore.SaveError(ctx, messageID, err.Error())
+		return action, fmt.Errorf("getting action: %w", err)
 	}
 
-	if isSpam {
-		newScore := score - 1
-		var action e.Action
-		if newScore <= h.BanScore {
-			action = e.Action{
-				Kind: e.ActionKindBan,
-				Note: "ban score reached",
-			}
-		} else {
-			action = e.Action{
-				Kind: e.ActionKindErase,
-				Note: "message is a spam",
-			}
-		}
+	err = s.MessagesStore.SaveAction(ctx, messageID, action)
+	if err != nil {
+		return action, fmt.Errorf("saving action: %w", err)
+	}
 
-		err = h.MessagesStore.SaveAction(ctx, messageID, action)
-		if err != nil {
-			return action, fmt.Errorf("saving action: %w", err)
-		}
-
-		err = h.ScoreStore.SetScore(ctx, msg.Sender, newScore)
+	newScore := s.getNewScore(score, delta)
+	if newScore != score {
+		err = s.ScoreStore.SetScore(ctx, msg.Sender, newScore)
 		if err != nil {
 			return action, fmt.Errorf("setting user score: %w", err)
 		}
-
-		return action, nil
 	}
 
-	err = h.MessagesStore.SaveAction(ctx, messageID, noop)
-	if err != nil {
-		return noop, fmt.Errorf("saving action: %w", err)
-	}
-
-	newScore := score + 1
-	err = h.ScoreStore.SetScore(ctx, msg.Sender, newScore)
-	if err != nil {
-		return noop, fmt.Errorf("setting user score: %w", err)
-	}
-
-	return noop, nil
+	return action, nil
 }
 
-func (h *ModeratingSrv) checkSpam(ctx context.Context, text string) (bool, error) {
-	request := &ai.Request{
-		Model: ai.DefaultModel,
-		Message: []ai.Message{
-			{Role: ai.RoleSystem, Content: prompt},
-			{Role: ai.RoleUser, Content: text},
-		},
-		Temperature:    0,
-		ResponseFormat: ai.YesNoResponseFormat,
+func (s *ModeratingSrv) getAction(ctx context.Context, score int, msg e.Message) (e.Action, int, error) {
+	if score <= s.BanScore {
+		return e.Action{
+			Kind: e.ActionKindBan,
+			Note: fmt.Sprintf("user score is %d, while ban score is %d", score, s.BanScore),
+		}, -1, nil
 	}
 
+	isSpam, err := s.checkSpam(ctx, msg.Text)
+	if err != nil {
+		return noop, 0, fmt.Errorf("checking spam: %w", err)
+	}
+
+	if !isSpam {
+		return noop, 1, nil
+	}
+
+	return e.Action{
+		Kind: e.ActionKindErase,
+		Note: "message is a spam",
+	}, -1, nil
+}
+
+func (s *ModeratingSrv) checkSpam(ctx context.Context, text string) (bool, error) {
 	var answer ai.YesNoAnswer
-	_, err := h.AI.GetJSONCompletion(ctx, request, &answer)
+	_, err := s.AI.GetJSONCompletion(ctx, prompt, text, ai.YesNoFormat, &answer)
 	if err != nil {
 		return false, fmt.Errorf("getting completion: %w", err)
 	}
 
 	return answer.Yes, nil
+}
+
+func (s *ModeratingSrv) getNewScore(score int, delta int) int {
+	newScore := score + delta
+
+	if newScore <= s.BanScore {
+		return s.BanScore
+	}
+
+	if newScore >= s.TrustedScore {
+		return s.TrustedScore
+	}
+
+	return newScore
 }
 
 type ScoreStore interface {
@@ -141,10 +136,11 @@ type ScoreStore interface {
 type MessagesStore interface {
 	SaveMessage(ctx context.Context, msg e.Message) (int64, error)
 	SaveAction(ctx context.Context, messageID int64, action e.Action) error
+	SaveError(ctx context.Context, messageID int64, error string) error
 }
 
 type AIClient interface {
-	GetJSONCompletion(ctx context.Context, request *ai.Request, result any) (*ai.Response, error)
+	GetJSONCompletion(ctx context.Context, system, user string, rf ai.ResponseFormat, result any) (*ai.Usage, error)
 }
 
 var noop = e.Action{

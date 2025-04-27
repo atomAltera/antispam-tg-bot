@@ -10,7 +10,7 @@ type HTTPClient interface {
 
 type Request struct {
 	Model          string    `json:"model"`
-	Message        []Message `json:"messages"`
+	Messages       []Message `json:"messages"`
 	Temperature    float64   `json:"temperature"`
 	ResponseFormat any       `json:"response_format"`
 }
@@ -19,6 +19,7 @@ type Response struct {
 	Index   int      `json:"index"`
 	Model   string   `json:"model"`
 	Choices []Choice `json:"choices"`
+	Usage   Usage    `json:"usage"`
 }
 
 type Usage struct {
