@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 
 	"nuclight.org/antispam-tg-bot/pkg/ai"
@@ -122,7 +121,7 @@ func (h *ModeratingSrv) checkSpam(ctx context.Context, text string) (bool, error
 			{Role: ai.RoleUser, Content: text},
 		},
 		Temperature:    0,
-		ResponseFormat: json.RawMessage(ai.YesNoResponseFormat),
+		ResponseFormat: ai.YesNoResponseFormat,
 	}
 
 	var answer ai.YesNoAnswer
