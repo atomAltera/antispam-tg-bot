@@ -97,7 +97,14 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 		return nil
 	}
 
+	if update.Message.Chat.IsPrivate() {
+		// TODO: handle private messages, reply to user
+		log.Warn("message is private")
+		return nil
+	}
+
 	if update.Message.IsCommand() {
+		// TODO: handle commands
 		log.Info("command received", "command")
 		return nil
 	}
@@ -110,13 +117,15 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 		"tg_user_fist_name", update.Message.From.FirstName,
 		"tg_user_last_name", update.Message.From.LastName,
 		"tg_chat_id", update.Message.Chat.ID,
+		"tg_chat_title", update.Message.Chat.Title,
 		"text", update.Message.Text,
 	)
 	msg := e.Message{
 		Sender: e.User{
-			Source: e.SourceTelegram,
-			ChatID: takeChatID(update.Message.Chat),
-			ID:     takeUserID(update.Message.From),
+			Source:    e.SourceTelegram,
+			ID:        takeUserID(update.Message.From),
+			ChatID:    takeChatID(update.Message.Chat),
+			ChatTitle: update.Message.Chat.Title,
 		},
 		ID:   takeMessageID(update.Message),
 		Text: update.Message.Text,
@@ -147,6 +156,18 @@ func (c *Client) applyAction(ctx context.Context, update tgbotapi.Update, act e.
 	if act.Kind == e.ActionKindErase {
 		log.Info("erasing message")
 
+		err := c.eraseMessage(ctx, update)
+		if err != nil {
+			return fmt.Errorf("erasing message: %w", err)
+		}
+
+		return nil
+	}
+
+	if act.Kind == e.ActionKindBan {
+		log.Info("banning user")
+
+		// todo:
 		err := c.eraseMessage(ctx, update)
 		if err != nil {
 			return fmt.Errorf("erasing message: %w", err)

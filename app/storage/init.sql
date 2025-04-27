@@ -26,3 +26,14 @@ CREATE TABLE IF NOT EXISTS messages
 
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);
 
+CREATE TABLE IF NOT EXISTS chats
+(
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    source     TEXT      NOT NULL,
+    chat_id    TEXT      NOT NULL,
+    title      TEXT      NOT NULL,
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_chats__source__chat_id ON chats (source, chat_id);
+

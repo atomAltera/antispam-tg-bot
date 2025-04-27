@@ -68,6 +68,19 @@ func (c *SQLite) SetScore(ctx context.Context, user e.User, score int) error {
 }
 
 func (c *SQLite) SaveMessage(ctx context.Context, msg e.Message) (int64, error) {
+	_, err := c.db.ExecContext(
+		ctx,
+		`INSERT INTO chats (
+			source, chat_id, title, created_at
+		) VALUES (
+			?, ?, ?, CURRENT_TIMESTAMP
+		) ON CONFLICT(source, chat_id) DO UPDATE SET title = ?`,
+		msg.Sender.Source, msg.Sender.ChatID, msg.Sender.ChatTitle, msg.Sender.ChatTitle,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("inserting chat: %w", err)
+	}
+
 	result, err := c.db.ExecContext(
 		ctx,
 		`INSERT INTO messages (

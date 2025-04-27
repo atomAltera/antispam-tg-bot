@@ -1,14 +1,17 @@
-package moderator
+package services
 
 import (
 	"context"
+	_ "embed"
+	"encoding/json"
 	"fmt"
 
+	"nuclight.org/antispam-tg-bot/pkg/ai"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
 	"nuclight.org/antispam-tg-bot/pkg/logger"
 )
 
-// Handler is a handler of new messages. It decides what to do with a message
+// ModeratingSrv is a handler of new messages. It decides what to do with a message
 // based on the score system for each user. New user receives a default score.
 // If score is lower than trusted score, the message is checked for spam. If the
 // message is spam, the user receives a penalty score -1 and erase message action is
@@ -16,7 +19,7 @@ import (
 // the message. If spam check returns false, score is increased by 1, and noop action
 // is returned. When user reaches trusted score, the message is not checked for spam
 // anymore.
-type Handler struct {
+type ModeratingSrv struct {
 	// Log is a logger
 	Log logger.Logger
 
@@ -34,12 +37,15 @@ type Handler struct {
 
 	// MessagesStore is a store for messages
 	MessagesStore MessagesStore
+
+	// AI is an AI client
+	AI AIClient
 }
 
 // HandleMessage handles a message, it takes a message, reviews it and returns an action to be taken
 // based on the score system. It returns an action and an error if something goes wrong. Returned
 // action has to be considered even if error is not nil.
-func (h *Handler) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
+func (h *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
 	score, err := h.ScoreStore.GetScore(ctx, msg.Sender, h.DefaultScore)
 	if err != nil {
 		return noop, fmt.Errorf("getting user score: %w", err)
@@ -103,9 +109,24 @@ func (h *Handler) HandleMessage(ctx context.Context, msg e.Message) (e.Action, e
 	return noop, nil
 }
 
-func (h *Handler) checkSpam(ctx context.Context, text string) (bool, error) {
-	// TODO: implement this
-	return true, nil
+func (h *ModeratingSrv) checkSpam(ctx context.Context, text string) (bool, error) {
+	request := &ai.Request{
+		Model: ai.DefaultModel,
+		Message: []ai.Message{
+			{Role: ai.RoleSystem, Content: prompt},
+			{Role: ai.RoleUser, Content: text},
+		},
+		Temperature:    0,
+		ResponseFormat: json.RawMessage(ai.YesNoResponseFormat),
+	}
+
+	var answer ai.YesNoAnswer
+	_, err := h.AI.GetJSONCompletion(ctx, request, &answer)
+	if err != nil {
+		return false, fmt.Errorf("getting completion: %w", err)
+	}
+
+	return answer.Yes, nil
 }
 
 type ScoreStore interface {
@@ -118,7 +139,14 @@ type MessagesStore interface {
 	SaveAction(ctx context.Context, messageID int64, action e.Action) error
 }
 
+type AIClient interface {
+	GetJSONCompletion(ctx context.Context, request *ai.Request, result any) (*ai.Response, error)
+}
+
 var noop = e.Action{
 	Kind: e.ActionKindNoop,
 	Note: "",
 }
+
+//go:embed system_prompt.txt
+var prompt string

@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/jessevdk/go-flags"
-	"nuclight.org/antispam-tg-bot/app/moderator"
+	"nuclight.org/antispam-tg-bot/app/services"
 	"nuclight.org/antispam-tg-bot/app/storage"
 	"nuclight.org/antispam-tg-bot/app/telegram"
+	"nuclight.org/antispam-tg-bot/pkg/ai"
 	"nuclight.org/antispam-tg-bot/pkg/logger"
 )
 
@@ -17,6 +19,7 @@ var opts struct {
 	TelegramAPIToken   string `long:"telegram-api-token" env:"TELEGRAM_API_TOKEN" required:"true" description:"telegram api token"`
 	TelegramWorkersNum int    `long:"telegram-workers-num" env:"TELEGRAM_WORKERS_NUM" default:"5" description:"number of workers for telegram bot"`
 	DBPath             string `long:"db-path" env:"DB_PATH" default:"./db/antispam.sqlite" description:"path to the sqlite database file"`
+	OpenAIKey          string `long:"ai-key" env:"OPENAI_KEY" required:"true" description:"ai api key"`
 }
 
 var Revision = "dev"
@@ -44,20 +47,23 @@ func main() {
 		}
 	}()
 
-	mod := &moderator.Handler{
+	openAIClient := ai.NewOpenAI(opts.OpenAIKey, http.DefaultClient)
+
+	moderatingSrv := &services.ModeratingSrv{
 		Log:           log,
 		DefaultScore:  -3,
 		TrustedScore:  0,
 		BanScore:      -4,
 		ScoreStore:    db,
 		MessagesStore: db,
+		AI:            openAIClient,
 	}
 
 	bot := &telegram.Client{
 		Log:        log,
 		APIToken:   opts.TelegramAPIToken,
 		WorkersNum: opts.TelegramWorkersNum,
-		Handler:    mod,
+		Handler:    moderatingSrv,
 	}
 
 	err = bot.Start(ctx)
