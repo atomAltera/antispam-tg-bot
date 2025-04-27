@@ -7,7 +7,6 @@ import (
 
 	"nuclight.org/antispam-tg-bot/pkg/ai"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
-	"nuclight.org/antispam-tg-bot/pkg/logger"
 )
 
 // ModeratingSrv is a handler of new messages. It decides what to do with a message
@@ -19,9 +18,6 @@ import (
 // is returned. When user reaches trusted score, the message is not checked for spam
 // anymore.
 type ModeratingSrv struct {
-	// Log is a logger
-	Log logger.Logger
-
 	// DefaultScore is a default score for a new user
 	DefaultScore int
 

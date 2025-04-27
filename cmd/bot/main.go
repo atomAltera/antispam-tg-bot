@@ -50,7 +50,6 @@ func main() {
 	openAIClient := ai.NewOpenAI(opts.OpenAIKey, http.DefaultClient)
 
 	moderatingSrv := &services.ModeratingSrv{
-		Log:           log,
 		DefaultScore:  0,
 		TrustedScore:  10,
 		BanScore:      -4,
