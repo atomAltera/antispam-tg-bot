@@ -41,6 +41,11 @@ type ModeratingSrv struct {
 // based on the score system. It returns an action and an error if something goes wrong. Returned
 // action has to be considered even if error is not nil.
 func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
+	if has := msg.HasText(); !has {
+		// TODO: support non-text messages
+		return noop, nil
+	}
+
 	score, err := s.ScoreStore.GetScore(ctx, msg.Sender, s.DefaultScore)
 	if err != nil {
 		return noop, fmt.Errorf("getting user score: %w", err)

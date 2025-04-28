@@ -14,6 +14,10 @@ type Message struct {
 	Text   string
 }
 
+func (m *Message) HasText() bool {
+	return m.Text != ""
+}
+
 type Source string
 
 const (

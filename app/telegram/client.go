@@ -99,14 +99,11 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 	}
 
 	if update.Message.Chat.IsPrivate() {
-		// TODO: handle private messages, reply to user
-		log.Warn("message is private")
-		return nil
-	}
-
-	if update.Message.IsCommand() {
-		// TODO: handle commands
-		log.Info("command received", "command")
+		log.Info("message is private")
+		err := c.replyPrivate(ctx, update)
+		if err != nil {
+			log.Error("replying to private message", "error", err)
+		}
 		return nil
 	}
 
@@ -121,6 +118,13 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 		"tg_chat_title", update.Message.Chat.Title,
 		"text", update.Message.Text,
 	)
+
+	if update.Message.IsCommand() {
+		// TODO: handle commands
+		log.Info("command received", "command")
+		return nil
+	}
+
 	msg := e.Message{
 		Sender: e.User{
 			Source:    e.SourceTelegram,
@@ -151,11 +155,10 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 func (c *Client) applyAction(ctx context.Context, update tgbotapi.Update, act e.Action) error {
 	log := c.Log.With("tg_update_id", update.UpdateID)
 
-	if act.Kind == e.ActionKindNoop {
+	switch act.Kind {
+	case e.ActionKindNoop:
 		return nil
-	}
-
-	if act.Kind == e.ActionKindErase {
+	case e.ActionKindErase:
 		log.Info("erasing message")
 
 		err := c.eraseMessage(ctx, update)
@@ -164,26 +167,39 @@ func (c *Client) applyAction(ctx context.Context, update tgbotapi.Update, act e.
 		}
 
 		return nil
-	}
+	case e.ActionKindBan:
+		log.Info("erasing message")
 
-	if act.Kind == e.ActionKindBan {
-		log.Info("banning user")
-
-		// todo:
 		err := c.eraseMessage(ctx, update)
 		if err != nil {
 			return fmt.Errorf("erasing message: %w", err)
 		}
 
 		return nil
+
+	default:
+		return fmt.Errorf("unknown action kind: %s", act.Kind)
 	}
 
-	return fmt.Errorf("unknown action kind: %s", act.Kind)
 }
 
 func (c *Client) eraseMessage(_ context.Context, update tgbotapi.Update) error {
 	conf := tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
 	_, err := c.bot.Request(conf)
+	return err
+}
+
+func (c *Client) replyPrivate(_ context.Context, update tgbotapi.Update) error {
+	msg := tgbotapi.NewMessage(
+		update.Message.Chat.ID,
+		"Hello, I can help you with spam moderation in your group.\n"+
+			"Please add me to your group as admin with ability to delete messages",
+	)
+
+	msg.ParseMode = tgbotapi.ModeHTML
+	msg.DisableWebPagePreview = true
+
+	_, err := c.bot.Send(msg)
 	return err
 }
 
