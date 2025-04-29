@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine as build
+FROM golang:1.24-bullseye as build
 
 WORKDIR /opt
 
@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o /opt/build/antispam-tg-bot nuclight.org/antispam-tg-bot/cmd/bot
+RUN CGO_ENABLED=1 go build -o /opt/build/antispam-tg-bot nuclight.org/antispam-tg-bot/cmd/bot
 
 FROM alpine:3.21
 
