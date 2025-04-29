@@ -10,6 +10,8 @@ A Telegram bot that uses AI to detect and remove spam messages, with a focus on 
 - User banning for repeat offenders
 - SQLite storage for persistent data
 - Configurable scoring thresholds
+- Detailed spam reports with reasons for moderation actions
+- Enhanced message handling through optimized Telegram update processing
 
 ## How It Works
 
@@ -17,9 +19,8 @@ The bot uses a reputation scoring system:
 - New users start with a default score
 - Messages from users below the trusted threshold are checked by AI
 - Non-spam messages earn users +1 point
-- Spam messages result in -1 point and message deletion
+- Spam messages result in -1 point, message deletion, and a detailed report
 - Once users reach the trusted score, their messages bypass checks
-- Users who drop to the ban score threshold are banned
 
 ## Requirements
 
