@@ -18,3 +18,7 @@ docker_build:
 .PHONY: docker_publish
 docker_publish: docker_build
 	docker push $(DOCKER_IMAGE)
+
+.PHONY: pull_db
+pull_db:
+	scp nuclight.org:antispam-tg-bot/db/antispam.sqlite ./db/antispam.sqlite

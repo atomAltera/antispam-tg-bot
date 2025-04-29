@@ -13,7 +13,11 @@ COPY . .
 
 RUN CGO_ENABLED=1 go build -o /opt/build/antispam-tg-bot nuclight.org/antispam-tg-bot/cmd/bot
 
-FROM alpine:3.21
+FROM debian:bullseye-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/app
 
