@@ -82,13 +82,6 @@ func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Act
 }
 
 func (s *ModeratingSrv) getAction(ctx context.Context, score int, msg e.Message) (e.Action, int, error) {
-	if score <= s.BanScore {
-		return e.Action{
-			Kind: e.ActionKindBan,
-			Note: fmt.Sprintf("User score is %d, while ban score is %d.", score, s.BanScore),
-		}, -1, nil
-	}
-
 	report, err := s.checkSpam(ctx, msg.Text)
 	if err != nil {
 		return noop, 0, fmt.Errorf("checking spam: %w", err)
