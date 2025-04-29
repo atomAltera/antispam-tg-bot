@@ -20,6 +20,7 @@ var opts struct {
 	TelegramWorkersNum int    `long:"telegram-workers-num" env:"TELEGRAM_WORKERS_NUM" default:"5" description:"number of workers for telegram bot"`
 	DBPath             string `long:"db-path" env:"DB_PATH" required:"true" description:"path to the sqlite database file"`
 	OpenAIKey          string `long:"ai-key" env:"OPENAI_KEY" required:"true" description:"ai api key"`
+	DevMode            bool   `long:"dev-mode" env:"DEV_MODE" description:"enable dev mode"`
 }
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 	}
 
 	log := logger.NewLogger()
-	log.Info("starting bot")
+	log.Info("starting bot", "dev_mode", opts.DevMode)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -60,6 +61,7 @@ func main() {
 		Log:        log,
 		APIToken:   opts.TelegramAPIToken,
 		WorkersNum: opts.TelegramWorkersNum,
+		DevMode:    opts.DevMode,
 		Handler:    moderatingSrv,
 	}
 
