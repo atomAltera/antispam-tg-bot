@@ -85,33 +85,41 @@ func (s *ModeratingSrv) getAction(ctx context.Context, score int, msg e.Message)
 	if score <= s.BanScore {
 		return e.Action{
 			Kind: e.ActionKindBan,
-			Note: fmt.Sprintf("user score is %d, while ban score is %d", score, s.BanScore),
+			Note: fmt.Sprintf("User score is %d, while ban score is %d.", score, s.BanScore),
 		}, -1, nil
 	}
 
-	isSpam, err := s.checkSpam(ctx, msg.Text)
+	report, err := s.checkSpam(ctx, msg.Text)
 	if err != nil {
 		return noop, 0, fmt.Errorf("checking spam: %w", err)
 	}
 
-	if !isSpam {
+	if !report.IsSpam {
 		return noop, 1, nil
+	}
+
+	newScore := s.getNewScore(score, -1)
+	if newScore <= s.BanScore {
+		return e.Action{
+			Kind: e.ActionKindBan,
+			Note: report.Note,
+		}, -1, nil
 	}
 
 	return e.Action{
 		Kind: e.ActionKindErase,
-		Note: "message is a spam",
+		Note: report.Note,
 	}, -1, nil
 }
 
-func (s *ModeratingSrv) checkSpam(ctx context.Context, text string) (bool, error) {
-	var answer ai.YesNoAnswer
-	_, err := s.AI.GetJSONCompletion(ctx, prompt, text, ai.YesNoFormat, &answer)
+func (s *ModeratingSrv) checkSpam(ctx context.Context, text string) (ai.SpamCheck, error) {
+	var check ai.SpamCheck
+	_, err := s.AI.GetJSONCompletion(ctx, prompt, text, ai.SpamCheckFormat, &check)
 	if err != nil {
-		return false, fmt.Errorf("getting completion: %w", err)
+		return check, fmt.Errorf("getting completion: %w", err)
 	}
 
-	return answer.Yes, nil
+	return check, nil
 }
 
 func (s *ModeratingSrv) getNewScore(score int, delta int) int {

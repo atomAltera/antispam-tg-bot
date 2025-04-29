@@ -89,8 +89,9 @@ func (c *OpenAI) GetJSONCompletion(ctx context.Context, system, user string, rf 
 	return &response.Usage, nil
 }
 
-type YesNoAnswer struct {
-	Yes bool `json:"yes"`
+type SpamCheck struct {
+	IsSpam bool   `json:"is_spam"`
+	Note   string `json:"note"`
 }
 
 type ResponseFormat string
@@ -99,18 +100,23 @@ func (rf ResponseFormat) MarshalJSON() ([]byte, error) {
 	return []byte(rf), nil
 }
 
-var YesNoFormat ResponseFormat = `{
+var SpamCheckFormat ResponseFormat = `{
   "type": "json_schema",
   "json_schema": {
-    "name": "yes_no_response",
+    "name": "spam_check_response",
     "schema": {
       "type": "object",
       "properties": {
-        "yes": {
-          "type": "boolean"
-        }
+        "is_spam": {
+          "type": "boolean",
+		  "description": "true if the message is spam, false otherwise"
+        },
+		"note": {
+		  "type": "string",
+		  "description": "if message is spam, this field contains short description of reason why it is spam"
+		}
       },
-      "required": ["yes"],
+      "required": ["is_spam", "note"],
       "additionalProperties": false
     },
     "strict": true

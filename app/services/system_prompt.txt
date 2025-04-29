@@ -5,5 +5,5 @@ kind of jobs.
 user will send you a messages taken from telegram channels, and you have to decide
 whether it is a spam or not.
 
-please answer yes: true if it is a spam message.
-yes: false if it is not a spam.
+please set `is_spam: true` if message is a spam, and write short description of why it is a spam in `note` field.
+if message is not a spam, set `is_spam: false` and leave `note` field empty.
