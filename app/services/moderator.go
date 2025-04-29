@@ -7,6 +7,7 @@ import (
 
 	"nuclight.org/antispam-tg-bot/pkg/ai"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
+	"nuclight.org/antispam-tg-bot/pkg/mutex"
 )
 
 // ModeratingSrv handles new messages by determining appropriate actions based on a user score system.
@@ -34,6 +35,9 @@ type ModeratingSrv struct {
 
 	// AI is an AI client
 	AI AIClient
+
+	// mutex is a mutex for synchronizing access to shared resources
+	mu mutex.KeyedMutex
 }
 
 // HandleMessage handles a message, it takes a message, reviews it and returns an action to be taken
@@ -44,6 +48,10 @@ func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Act
 		// TODO: support non-text messages
 		return noop, nil
 	}
+
+	// lock the mutex for the sender ID to prevent concurrent access to the same user's score
+	s.mu.Lock(msg.Sender.ID)
+	defer s.mu.Unlock(msg.Sender.ID)
 
 	score, err := s.ScoreStore.GetScore(ctx, msg.Sender, s.DefaultScore)
 	if err != nil {
