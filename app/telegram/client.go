@@ -20,6 +20,7 @@ type Client struct {
 	Log        logger.Logger
 	APIToken   string
 	WorkersNum int
+	DevMode    bool
 	Handler    MessageHandler
 
 	bot *tgbotapi.BotAPI
@@ -40,16 +41,16 @@ func (c *Client) Start(ctx context.Context) (err error) {
 
 	log.Info("bot api created", "username", c.bot.Self.UserName)
 
-	updatesConf := tgbotapi.NewUpdate(0)
-	updatesConf.Timeout = 60
+	tgUpdatesConf := tgbotapi.NewUpdate(0)
+	tgUpdatesConf.Timeout = 60
 
-	updatesChan := c.bot.GetUpdatesChan(updatesConf)
+	tgUpdatesChan := c.bot.GetUpdatesChan(tgUpdatesConf)
 
 	for i := 0; i < c.WorkersNum; i++ {
 		c.wg.Add(1)
 		go func() {
 			defer c.wg.Done()
-			c.handleUpdatesFromChan(ctx, updatesChan)
+			c.handleUpdatesFromChan(ctx, tgUpdatesChan)
 		}()
 	}
 
@@ -60,22 +61,22 @@ func (c *Client) Wait() {
 	c.wg.Wait()
 }
 
-func (c *Client) handleUpdatesFromChan(ctx context.Context, updatesChan tgbotapi.UpdatesChannel) {
+func (c *Client) handleUpdatesFromChan(ctx context.Context, tgUpdatesChan tgbotapi.UpdatesChannel) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case update := <-updatesChan:
-			err := c.handleUpdate(ctx, update)
+		case tgUpdate := <-tgUpdatesChan:
+			err := c.handleUpdate(ctx, tgUpdate)
 			if err != nil {
-				c.Log.Error("handling update", "tg_update_id", update.UpdateID, "error", err)
+				c.Log.Error("handling update", "tg_update_id", tgUpdate.UpdateID, "error", err)
 			}
 		}
 	}
 }
 
-func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error {
-	log := c.Log.With("tg_update_id", update.UpdateID)
+func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) error {
+	log := c.Log.With("tg_update_id", tgUpdate.UpdateID)
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -83,24 +84,25 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 		}
 	}()
 
-	if update.Message == nil {
+	tgMsg := takeMessage(tgUpdate)
+	if tgMsg == nil {
 		log.Warn("message is nil")
 		return nil
 	}
 
-	if update.Message.From == nil {
+	if tgMsg.From == nil {
 		log.Warn("message from is nil")
 		return nil
 	}
 
-	if update.Message.Chat == nil {
+	if tgMsg.Chat == nil {
 		log.Warn("message chat is nil")
 		return nil
 	}
 
-	if update.Message.Chat.IsPrivate() {
+	if tgMsg.Chat.IsPrivate() && !c.DevMode {
 		log.Info("message is private")
-		err := c.replyPrivate(ctx, update)
+		err := c.replyPrivate(ctx, tgMsg)
 		if err != nil {
 			log.Error("replying to private message", "error", err)
 		}
@@ -109,31 +111,31 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 
 	log.Info(
 		"new message",
-		"tg_message_id", update.Message.MessageID,
-		"tg_user_id", update.Message.From.ID,
-		"tg_user_nick", update.Message.From.UserName,
-		"tg_user_fist_name", update.Message.From.FirstName,
-		"tg_user_last_name", update.Message.From.LastName,
-		"tg_chat_id", update.Message.Chat.ID,
-		"tg_chat_title", update.Message.Chat.Title,
-		"text", update.Message.Text,
+		"tg_message_id", tgMsg.MessageID,
+		"tg_user_id", tgMsg.From.ID,
+		"tg_user_nick", tgMsg.From.UserName,
+		"tg_user_fist_name", tgMsg.From.FirstName,
+		"tg_user_last_name", tgMsg.From.LastName,
+		"tg_chat_id", tgMsg.Chat.ID,
+		"tg_chat_title", tgMsg.Chat.Title,
+		"text", tgMsg.Text,
 	)
 
-	if update.Message.IsCommand() {
+	if tgMsg.IsCommand() {
 		// TODO: handle commands
-		log.Info("command received", "command", update.Message.Command())
+		log.Info("command received", "command", tgMsg.Command())
 		return nil
 	}
 
 	msg := e.Message{
 		Sender: e.User{
-			ID:        takeUserID(update.Message.From),
-			Name:      takeUserName(update.Message.From),
-			ChatID:    takeChatID(update.Message.Chat),
-			ChatTitle: update.Message.Chat.Title,
+			ID:        takeUserID(tgMsg.From),
+			Name:      takeUserName(tgMsg.From),
+			ChatID:    takeChatID(tgMsg.Chat),
+			ChatTitle: tgMsg.Chat.Title,
 		},
-		ID:   takeMessageID(update.Message),
-		Text: update.Message.Text,
+		ID:   takeMessageID(tgMsg),
+		Text: tgMsg.Text,
 	}
 
 	act, err := c.Handler.HandleMessage(ctx, msg)
@@ -142,7 +144,7 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 	}
 
 	log.Info("message handled", "action", act.Kind, "note", act.Note)
-	err = c.applyAction(ctx, update, act)
+	err = c.applyAction(ctx, tgUpdate.UpdateID, tgMsg, act)
 	if err != nil {
 		return fmt.Errorf("applying action: %w", err)
 	}
@@ -151,8 +153,8 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 
 }
 
-func (c *Client) applyAction(ctx context.Context, update tgbotapi.Update, act e.Action) error {
-	log := c.Log.With("tg_update_id", update.UpdateID)
+func (c *Client) applyAction(ctx context.Context, tgUpdateID int, tgMsg *tgbotapi.Message, act e.Action) error {
+	log := c.Log.With("tg_update_id", tgUpdateID)
 
 	switch act.Kind {
 	case e.ActionKindNoop:
@@ -160,7 +162,7 @@ func (c *Client) applyAction(ctx context.Context, update tgbotapi.Update, act e.
 	case e.ActionKindErase:
 		log.Info("erasing message")
 
-		err := c.eraseMessage(ctx, update)
+		err := c.eraseMessage(ctx, tgMsg)
 		if err != nil {
 			return fmt.Errorf("erasing message: %w", err)
 		}
@@ -169,7 +171,7 @@ func (c *Client) applyAction(ctx context.Context, update tgbotapi.Update, act e.
 	case e.ActionKindBan:
 		log.Info("erasing message")
 
-		err := c.eraseMessage(ctx, update)
+		err := c.eraseMessage(ctx, tgMsg)
 		if err != nil {
 			return fmt.Errorf("erasing message: %w", err)
 		}
@@ -182,15 +184,15 @@ func (c *Client) applyAction(ctx context.Context, update tgbotapi.Update, act e.
 
 }
 
-func (c *Client) eraseMessage(_ context.Context, update tgbotapi.Update) error {
-	conf := tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID)
+func (c *Client) eraseMessage(_ context.Context, tgMsg *tgbotapi.Message) error {
+	conf := tgbotapi.NewDeleteMessage(tgMsg.Chat.ID, tgMsg.MessageID)
 	_, err := c.bot.Request(conf)
 	return err
 }
 
-func (c *Client) replyPrivate(_ context.Context, update tgbotapi.Update) error {
+func (c *Client) replyPrivate(_ context.Context, tgMsg *tgbotapi.Message) error {
 	msg := tgbotapi.NewMessage(
-		update.Message.Chat.ID,
+		tgMsg.Chat.ID,
 		"Hello, I can help you with spam moderation in your group.\n"+
 			"Please add me to your group as admin with ability to delete messages",
 	)
@@ -200,6 +202,26 @@ func (c *Client) replyPrivate(_ context.Context, update tgbotapi.Update) error {
 
 	_, err := c.bot.Send(msg)
 	return err
+}
+
+func takeMessage(update tgbotapi.Update) *tgbotapi.Message {
+	if update.Message != nil {
+		return update.Message
+	}
+
+	if update.EditedMessage != nil {
+		return update.EditedMessage
+	}
+
+	if update.ChannelPost != nil {
+		return update.ChannelPost
+	}
+
+	if update.EditedChannelPost != nil {
+		return update.EditedChannelPost
+	}
+
+	return nil
 }
 
 func takeMessageID(message *tgbotapi.Message) string {

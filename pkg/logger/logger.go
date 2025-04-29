@@ -1,10 +1,11 @@
 package logger
 
 import (
-	"github.com/lmittmann/tint"
 	"log/slog"
 	"os"
 	"time"
+
+	"github.com/lmittmann/tint"
 )
 
 type Logger = *slog.Logger
