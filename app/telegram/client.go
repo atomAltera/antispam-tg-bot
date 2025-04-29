@@ -121,7 +121,7 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 
 	if update.Message.IsCommand() {
 		// TODO: handle commands
-		log.Info("command received", "command")
+		log.Info("command received", "command", update.Message.Command())
 		return nil
 	}
 
