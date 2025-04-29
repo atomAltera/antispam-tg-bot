@@ -18,11 +18,9 @@ import (
 var opts struct {
 	TelegramAPIToken   string `long:"telegram-api-token" env:"TELEGRAM_API_TOKEN" required:"true" description:"telegram api token"`
 	TelegramWorkersNum int    `long:"telegram-workers-num" env:"TELEGRAM_WORKERS_NUM" default:"5" description:"number of workers for telegram bot"`
-	DBPath             string `long:"db-path" env:"DB_PATH" default:"./db/antispam.sqlite" description:"path to the sqlite database file"`
+	DBPath             string `long:"db-path" env:"DB_PATH" required:"true" description:"path to the sqlite database file"`
 	OpenAIKey          string `long:"ai-key" env:"OPENAI_KEY" required:"true" description:"ai api key"`
 }
-
-var Revision = "dev"
 
 func main() {
 	_, err := flags.Parse(&opts)
@@ -31,7 +29,7 @@ func main() {
 	}
 
 	log := logger.NewLogger()
-	log.Info("starting bot", "revision", Revision)
+	log.Info("starting bot")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
