@@ -9,14 +9,13 @@ import (
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
 )
 
-// ModeratingSrv is a handler of new messages. It decides what to do with a message
-// based on the score system for each user. New user receives a default score.
-// If score is lower than trusted score, the message is checked for spam. If the
-// message is spam, the user receives a penalty score -1 and erase message action is
-// returned. If the score reaches ban score, ban action is returned which also erases
-// the message. If spam check returns false, score is increased by 1, and noop action
-// is returned. When user reaches trusted score, the message is not checked for spam
-// anymore.
+// ModeratingSrv handles new messages by determining appropriate actions based on a user score system.
+// Each new user receives a default score. If a user's score is below the trusted threshold,
+// their messages are checked for spam. When spam is detected, the user receives a penalty (-1 score)
+// and the message is erased. If a user's score falls to or below the ban threshold, a ban action
+// is returned which also erases the message. If a message passes the spam check, the user's score
+// increases by 1 and no action is taken. Once a user reaches the trusted score threshold, their
+// messages are no longer checked for spam.
 type ModeratingSrv struct {
 	// DefaultScore is a default score for a new user
 	DefaultScore int
