@@ -1,7 +1,6 @@
 package entities
 
 type User struct {
-	Source    Source
 	ID        string
 	Name      string
 	ChatID    string
@@ -17,9 +16,3 @@ type Message struct {
 func (m *Message) HasText() bool {
 	return m.Text != ""
 }
-
-type Source string
-
-const (
-	SourceTelegram = "telegram"
-)

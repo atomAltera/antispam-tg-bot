@@ -41,8 +41,8 @@ func (c *SQLite) GetScore(ctx context.Context, user e.User, defaultValue int) (i
 	var score int
 	err := c.db.QueryRowContext(
 		ctx,
-		"SELECT score FROM scores WHERE source = ? AND chat_id = ? and user_id = ?",
-		user.Source, user.ChatID, user.ID,
+		"SELECT score FROM scores WHERE chat_id = ? and user_id = ?",
+		user.ChatID, user.ID,
 	).Scan(&score)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -58,11 +58,11 @@ func (c *SQLite) GetScore(ctx context.Context, user e.User, defaultValue int) (i
 func (c *SQLite) SetScore(ctx context.Context, user e.User, score int) error {
 	_, err := c.db.ExecContext(
 		ctx,
-		`INSERT INTO scores (source, chat_id, user_id, user_name, score, updated_at)
-			VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) 
-			ON CONFLICT(source, chat_id, user_id) DO UPDATE 
+		`INSERT INTO scores (chat_id, user_id, user_name, score, updated_at)
+			VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) 
+			ON CONFLICT(chat_id, user_id) DO UPDATE 
 			    SET score = ?, updated_at = CURRENT_TIMESTAMP`,
-		user.Source, user.ChatID, user.ID, user.Name, score, score,
+		user.ChatID, user.ID, user.Name, score, score,
 	)
 	return err
 }
@@ -71,11 +71,11 @@ func (c *SQLite) SaveMessage(ctx context.Context, msg e.Message) (int64, error) 
 	_, err := c.db.ExecContext(
 		ctx,
 		`INSERT INTO chats (
-			source, chat_id, title, created_at
+			chat_id, title, created_at
 		) VALUES (
-			?, ?, ?, CURRENT_TIMESTAMP
-		) ON CONFLICT(source, chat_id) DO UPDATE SET title = ?`,
-		msg.Sender.Source, msg.Sender.ChatID, msg.Sender.ChatTitle, msg.Sender.ChatTitle,
+			?, ?, CURRENT_TIMESTAMP
+		) ON CONFLICT(chat_id) DO UPDATE SET title = ?`,
+		msg.Sender.ChatID, msg.Sender.ChatTitle, msg.Sender.ChatTitle,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("inserting chat: %w", err)
@@ -84,11 +84,11 @@ func (c *SQLite) SaveMessage(ctx context.Context, msg e.Message) (int64, error) 
 	result, err := c.db.ExecContext(
 		ctx,
 		`INSERT INTO messages (
-			source, message_id, chat_id, sender_user_id, sender_user_name, text, created_at, action, action_note
+			message_id, chat_id, sender_user_id, sender_user_name, text, created_at, action, action_note
 		) VALUES (
-			?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, NULL
+			?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, NULL
 		)`,
-		msg.Sender.Source, msg.ID, msg.Sender.ChatID, msg.Sender.ID, msg.Sender.Name, msg.Text,
+		msg.ID, msg.Sender.ChatID, msg.Sender.ID, msg.Sender.Name, msg.Text,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("inserting message: %w", err)

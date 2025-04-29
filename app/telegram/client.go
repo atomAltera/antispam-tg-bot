@@ -127,7 +127,6 @@ func (c *Client) handleUpdate(ctx context.Context, update tgbotapi.Update) error
 
 	msg := e.Message{
 		Sender: e.User{
-			Source:    e.SourceTelegram,
 			ID:        takeUserID(update.Message.From),
 			Name:      takeUserName(update.Message.From),
 			ChatID:    takeChatID(update.Message.Chat),
