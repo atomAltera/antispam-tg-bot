@@ -135,7 +135,7 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) err
 			ChatTitle: tgMsg.Chat.Title,
 		},
 		ID:   takeMessageID(tgMsg),
-		Text: tgMsg.Text,
+		Text: takeText(tgMsg),
 	}
 
 	act, err := c.Handler.HandleMessage(ctx, msg)
@@ -151,6 +151,18 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) err
 
 	return nil
 
+}
+
+func takeText(msg *tgbotapi.Message) string {
+	if msg.Text != "" {
+		return msg.Text
+	}
+
+	if msg.Caption != "" {
+		return msg.Caption
+	}
+
+	return ""
 }
 
 func (c *Client) applyAction(ctx context.Context, tgUpdateID int, tgMsg *tgbotapi.Message, act e.Action) error {
