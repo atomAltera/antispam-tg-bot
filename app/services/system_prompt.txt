@@ -3,8 +3,8 @@ A MESSAGE IS SPAM OR NOT.
 
 SPAM MESSAGES ARE MESSAGES THAT:
 - offer some kind of jobs.
-- offer some kind of services.
-- offer some kind of products, tickets and so on.
+- offer to join to some projects.
+- offer some kind of tickets.
 
 PLEASE CONSIDER THAT MESSAGES THAT DESCRIBE COMMON KNOWN SPAMS AND SCAMS ARE NOT THE SPAM.
 
