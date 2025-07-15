@@ -4,7 +4,7 @@ A MESSAGE IS SPAM OR NOT.
 SPAM MESSAGES ARE MESSAGES THAT:
 - offer some kind of jobs.
 - offer to join to some projects.
-- offer some kind of tickets.
+- offer or sell concert tickets.
 
 PLEASE CONSIDER THAT MESSAGES THAT DESCRIBE COMMON KNOWN SPAMS AND SCAMS ARE NOT THE SPAM.
 
