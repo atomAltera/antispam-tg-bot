@@ -63,7 +63,7 @@ func main() {
 
 	for i, msg := range messages {
 		if n := i + 1; n%50 == 0 {
-			log.Info("processing message", "n", n, "of", len(messages))
+			log.Debug("processing message", "n", n, "of", len(messages))
 		}
 
 		key := normalize(msg.Text)
@@ -75,7 +75,7 @@ func main() {
 
 		var wasSpam bool
 		if msg.Action == nil {
-			log.Error("message without action", "id", msg.ID, "text", msg.Text)
+			log.Debug("message without action", "id", msg.ID, "text", msg.Text)
 			continue
 		}
 		if a := *msg.Action; a == e.ActionKindBan || a == e.ActionKindErase {
@@ -95,12 +95,12 @@ func main() {
 		}
 
 		if !wasSpam && checkResult.IsSpam {
-			log.Warn("became spam", "text", msg.Text, "note", checkResult.Note)
+			log.Info("became spam", "text", msg.Text, "note", checkResult.Note, "user", msg.Sender.Name, "time", msg.CreatedAt)
 			continue
 		}
 
 		if wasSpam && !checkResult.IsSpam {
-			log.Error("became not a spam", "text", msg.Text, "note", checkResult.Note)
+			log.Warn("became not a spam", "text", msg.Text, "user", msg.Sender.Name, "time", msg.CreatedAt)
 			continue
 		}
 

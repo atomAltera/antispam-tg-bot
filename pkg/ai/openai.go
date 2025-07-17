@@ -123,4 +123,4 @@ var SpamCheckFormat ResponseFormat = `{
   }
 }`
 
-const DefaultModel = "gpt-4.1-nano"
+const DefaultModel = "gpt-4.1-mini"
