@@ -102,6 +102,50 @@ func (c *SQLite) SaveMessage(ctx context.Context, msg e.Message) (int64, error) 
 	return id, nil
 }
 
+func (c *SQLite) ListMessages(ctx context.Context, limit int) ([]e.SavedMessage, error) {
+	rows, err := c.db.QueryContext(
+		ctx,
+		`SELECT m.id, m.message_id, m.chat_id, m.sender_user_id, m.sender_user_name, m.text, 
+		        m.created_at, m.action, m.action_note, m.error
+		 FROM messages AS m
+		 ORDER BY m.created_at DESC
+		 LIMIT ?`,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying messages: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var messages []e.SavedMessage
+	for rows.Next() {
+		var msg e.SavedMessage
+		err = rows.Scan(
+			&msg.ID,
+			&msg.Sender.ID,
+			&msg.Sender.ChatID,
+			&msg.Sender.ID,
+			&msg.Sender.Name,
+			&msg.Text,
+			&msg.CreatedAt,
+			&msg.Action,
+			&msg.ActionNote,
+			&msg.Error,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning message: %w", err)
+		}
+		messages = append(messages, msg)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating over messages: %w", err)
+	}
+
+	return messages, nil
+
+}
+
 func (c *SQLite) SaveAction(ctx context.Context, messageID int64, action e.Action) error {
 	_, err := c.db.ExecContext(
 		ctx,
