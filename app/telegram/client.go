@@ -182,10 +182,13 @@ func (c *Client) applyAction(ctx context.Context, tgUpdateID int, tgMsg *tgbotap
 		return nil
 	case e.ActionKindBan:
 		log.Info("erasing message")
-
-		err := c.eraseMessage(ctx, tgMsg)
-		if err != nil {
+		if err := c.eraseMessage(ctx, tgMsg); err != nil {
 			return fmt.Errorf("erasing message: %w", err)
+		}
+
+		log.Info("banning user", "tg_user_id", tgMsg.From.ID, "tg_chat_id", tgMsg.Chat.ID, "tg_chat_title", tgMsg.Chat.Title, "tg_user_name", takeUserName(tgMsg.From))
+		if err := c.banUser(ctx, tgMsg.From.ID, tgMsg.Chat.ID); err != nil {
+			return fmt.Errorf("banning user: %w", err)
 		}
 
 		return nil
@@ -198,6 +201,19 @@ func (c *Client) applyAction(ctx context.Context, tgUpdateID int, tgMsg *tgbotap
 
 func (c *Client) eraseMessage(_ context.Context, tgMsg *tgbotapi.Message) error {
 	conf := tgbotapi.NewDeleteMessage(tgMsg.Chat.ID, tgMsg.MessageID)
+	_, err := c.bot.Request(conf)
+	return err
+}
+
+func (c *Client) banUser(_ context.Context, userID int64, chatID int64) error {
+	conf := tgbotapi.BanChatMemberConfig{
+		ChatMemberConfig: tgbotapi.ChatMemberConfig{
+			ChatID: chatID,
+			UserID: userID,
+		},
+		UntilDate:      0,
+		RevokeMessages: false,
+	}
 	_, err := c.bot.Request(conf)
 	return err
 }
