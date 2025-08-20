@@ -34,8 +34,8 @@ func (c *OpenAI) GetJSONCompletion(ctx context.Context, system, user string, rf 
 				Content: user,
 			},
 		},
-		Temperature:    0,
-		ResponseFormat: rf,
+		ReasoningEffort: ReasoningEffortLow,
+		ResponseFormat:  rf,
 	}
 
 	body, err := json.Marshal(request)
@@ -67,8 +67,13 @@ func (c *OpenAI) GetJSONCompletion(ctx context.Context, system, user string, rf 
 		return nil, fmt.Errorf("unexpected status code: %d: %s", res.StatusCode, resBody)
 	}
 
+	body, err = io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response body: %w", err)
+	}
+
 	var response Response
-	if err = json.NewDecoder(res.Body).Decode(&response); err != nil {
+	if err = json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -123,4 +128,4 @@ var SpamCheckFormat ResponseFormat = `{
   }
 }`
 
-const DefaultModel = "gpt-4.1-mini"
+const DefaultModel = "gpt-5-mini"

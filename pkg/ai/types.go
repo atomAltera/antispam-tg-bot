@@ -9,11 +9,33 @@ type HTTPClient interface {
 }
 
 type Request struct {
-	Model          string    `json:"model"`
-	Messages       []Message `json:"messages"`
-	Temperature    float64   `json:"temperature"`
-	ResponseFormat any       `json:"response_format"`
+	Model           string          `json:"model"`
+	Messages        []Message       `json:"messages"`
+	ReasoningEffort ReasoningEffort `json:"reasoning_effort,omitempty"`
+	ResponseFormat  any             `json:"response_format"`
 }
+
+type Message struct {
+	Role    Role   `json:"role"`
+	Content string `json:"content"`
+}
+
+type Role string
+
+const (
+	RoleSystem    Role = "system"
+	RoleUser      Role = "user"
+	RoleAssistant Role = "assistant"
+)
+
+type ReasoningEffort string
+
+const (
+	ReasoningEffortMinimal ReasoningEffort = "minimal"
+	ReasoningEffortLow     ReasoningEffort = "low"
+	ReasoningEffortMedium  ReasoningEffort = "medium"
+	ReasoningEffortHigh    ReasoningEffort = "high"
+)
 
 type Response struct {
 	Index   int      `json:"index"`
@@ -33,19 +55,6 @@ type Choice struct {
 	Message      Message      `json:"message"`
 	FinishReason FinishReason `json:"finish_reason"`
 }
-
-type Message struct {
-	Role    Role   `json:"role"`
-	Content string `json:"content"`
-}
-
-type Role string
-
-const (
-	RoleSystem    Role = "system"
-	RoleUser      Role = "user"
-	RoleAssistant Role = "assistant"
-)
 
 type FinishReason string
 
