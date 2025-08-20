@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -85,6 +86,11 @@ func main() {
 		var checkResult ai.SpamCheck
 		_, err = llm.GetJSONCompletion(ctx, prompt, msg.Text, ai.SpamCheckFormat, &checkResult)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				log.Info("context canceled, stopping")
+				return
+			}
+
 			log.Error("getting completion", "error", err, "text", msg.Text)
 			continue
 		}
