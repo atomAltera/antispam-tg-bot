@@ -34,7 +34,7 @@ func (c *OpenAI) GetJSONCompletion(ctx context.Context, system, user string, rf 
 				Content: user,
 			},
 		},
-		ReasoningEffort: ReasoningEffortLow,
+		ReasoningEffort: ReasoningEffortMedium,
 		ResponseFormat:  rf,
 	}
 
