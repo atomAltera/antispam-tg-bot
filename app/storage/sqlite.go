@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
@@ -102,15 +103,15 @@ func (c *SQLite) SaveMessage(ctx context.Context, msg e.Message) (int64, error) 
 	return id, nil
 }
 
-func (c *SQLite) ListMessages(ctx context.Context, limit int) ([]e.SavedMessage, error) {
+func (c *SQLite) ListMessages(ctx context.Context, fromDate time.Time) ([]e.SavedMessage, error) {
 	rows, err := c.db.QueryContext(
 		ctx,
 		`SELECT m.id, m.message_id, m.chat_id, m.sender_user_id, m.sender_user_name, m.text, 
 		        m.created_at, m.action, m.action_note, m.error
 		 FROM messages AS m
-		 ORDER BY m.created_at DESC
-		 LIMIT ?`,
-		limit,
+		 WHERE m.created_at >= ?
+		 ORDER BY m.created_at DESC`,
+		fromDate,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("querying messages: %w", err)

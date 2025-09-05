@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	_ "embed"
 
@@ -21,7 +22,6 @@ import (
 var opts struct {
 	DBPath    string `long:"db-path" env:"DB_PATH" required:"true" description:"path to the sqlite database file"`
 	OpenAIKey string `long:"ai-key" env:"OPENAI_KEY" required:"true" description:"ai api key"`
-	Count     int    `short:"c" long:"count" default:"500" description:"number of messages to load from database"`
 }
 
 //go:embed system_prompt.txt
@@ -52,7 +52,7 @@ func main() {
 
 	llm := ai.NewOpenAI(opts.OpenAIKey, http.DefaultClient)
 
-	messages, err := db.ListMessages(ctx, opts.Count)
+	messages, err := db.ListMessages(ctx, time.Now().Add(time.Hour*24*30*-1))
 	if err != nil {
 		log.Error("listing messages from database", "error", err)
 		os.Exit(1)
