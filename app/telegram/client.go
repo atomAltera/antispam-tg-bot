@@ -3,6 +3,8 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +13,8 @@ import (
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
 	"nuclight.org/antispam-tg-bot/pkg/logger"
 )
+
+const maxMediaSize = 1024 * 1024 // 1MB
 
 type MessageHandler interface {
 	HandleMessage(ctx context.Context, msg e.Message) (e.Action, error)
@@ -136,6 +140,18 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) err
 		},
 		ID:   takeMessageID(tgMsg),
 		Text: takeText(tgMsg),
+	}
+
+	if mi := getMediaInfo(tgMsg); mi != nil {
+		mimeType, content, size, truncated, err := c.downloadMedia(ctx, mi)
+		if err != nil {
+			log.Error("downloading media", "error", err)
+		} else {
+			msg.MediaType = mimeType
+			msg.MediaContent = content
+			msg.MediaSize = size
+			msg.MediaTruncated = truncated
+		}
 	}
 
 	act, err := c.Handler.HandleMessage(ctx, msg)
@@ -296,4 +312,78 @@ func takeUserName(user *tgbotapi.User) string {
 	}
 
 	return sb.String()
+}
+
+type mediaInfo struct {
+	fileID   string
+	mimeType string
+}
+
+func getMediaInfo(msg *tgbotapi.Message) *mediaInfo {
+	if len(msg.Photo) > 0 {
+		// Get largest photo (last in array)
+		photo := msg.Photo[len(msg.Photo)-1]
+		return &mediaInfo{fileID: photo.FileID, mimeType: "image/jpeg"}
+	}
+	if msg.Animation != nil {
+		return &mediaInfo{fileID: msg.Animation.FileID, mimeType: msg.Animation.MimeType}
+	}
+	if msg.Video != nil {
+		return &mediaInfo{fileID: msg.Video.FileID, mimeType: msg.Video.MimeType}
+	}
+	if msg.Document != nil {
+		return &mediaInfo{fileID: msg.Document.FileID, mimeType: msg.Document.MimeType}
+	}
+	if msg.Sticker != nil {
+		mimeType := "image/webp"
+		if msg.Sticker.IsAnimated {
+			mimeType = "application/x-tgsticker"
+		}
+		return &mediaInfo{fileID: msg.Sticker.FileID, mimeType: mimeType}
+	}
+	return nil
+}
+
+func (c *Client) downloadMedia(ctx context.Context, info *mediaInfo) (mimeType *string, content []byte, size *int64, truncated bool, err error) {
+	file, err := c.bot.GetFile(tgbotapi.FileConfig{FileID: info.fileID})
+	if err != nil {
+		return nil, nil, nil, false, fmt.Errorf("getting file: %w", err)
+	}
+
+	fileSize := int64(file.FileSize)
+	size = &fileSize
+	mimeType = &info.mimeType
+
+	if fileSize > maxMediaSize {
+		truncated = true
+		return mimeType, nil, size, truncated, nil
+	}
+
+	fileURL := file.Link(c.bot.Token)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+	if err != nil {
+		return nil, nil, nil, false, fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, nil, nil, false, fmt.Errorf("downloading file: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, nil, false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	content, err = io.ReadAll(io.LimitReader(resp.Body, maxMediaSize+1))
+	if err != nil {
+		return nil, nil, nil, false, fmt.Errorf("reading file: %w", err)
+	}
+
+	if int64(len(content)) > maxMediaSize {
+		truncated = true
+		content = nil
+	}
+
+	return mimeType, content, size, truncated, nil
 }
