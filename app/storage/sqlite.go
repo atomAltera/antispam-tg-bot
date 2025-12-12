@@ -85,11 +85,14 @@ func (c *SQLite) SaveMessage(ctx context.Context, msg e.Message) (int64, error) 
 	result, err := c.db.ExecContext(
 		ctx,
 		`INSERT INTO messages (
-			message_id, chat_id, sender_user_id, sender_user_name, text, created_at, action, action_note
+			message_id, chat_id, sender_user_id, sender_user_name, text, created_at, action, action_note,
+			media_type, media_content, media_size, media_truncated
 		) VALUES (
-			?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, NULL
+			?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, NULL,
+			?, ?, ?, ?
 		)`,
 		msg.ID, msg.Sender.ChatID, msg.Sender.ID, msg.Sender.Name, msg.Text,
+		msg.MediaType, msg.MediaContent, msg.MediaSize, msg.MediaTruncated,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("inserting message: %w", err)
@@ -106,8 +109,9 @@ func (c *SQLite) SaveMessage(ctx context.Context, msg e.Message) (int64, error) 
 func (c *SQLite) ListMessages(ctx context.Context, fromDate time.Time) ([]e.SavedMessage, error) {
 	rows, err := c.db.QueryContext(
 		ctx,
-		`SELECT m.id, m.message_id, m.chat_id, m.sender_user_id, m.sender_user_name, m.text, 
-		        m.created_at, m.action, m.action_note, m.error
+		`SELECT m.id, m.message_id, m.chat_id, m.sender_user_id, m.sender_user_name, m.text,
+		        m.created_at, m.action, m.action_note, m.error,
+		        m.media_type, m.media_content, m.media_size, m.media_truncated
 		 FROM messages AS m
 		 WHERE m.created_at >= ?
 		 ORDER BY m.created_at DESC`,
@@ -121,6 +125,7 @@ func (c *SQLite) ListMessages(ctx context.Context, fromDate time.Time) ([]e.Save
 	var messages []e.SavedMessage
 	for rows.Next() {
 		var msg e.SavedMessage
+		var mediaTruncated sql.NullBool
 		err = rows.Scan(
 			&msg.ID,
 			&msg.Sender.ID,
@@ -132,10 +137,15 @@ func (c *SQLite) ListMessages(ctx context.Context, fromDate time.Time) ([]e.Save
 			&msg.Action,
 			&msg.ActionNote,
 			&msg.Error,
+			&msg.MediaType,
+			&msg.MediaContent,
+			&msg.MediaSize,
+			&mediaTruncated,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scanning message: %w", err)
 		}
+		msg.MediaTruncated = mediaTruncated.Valid && mediaTruncated.Bool
 		messages = append(messages, msg)
 	}
 
@@ -173,5 +183,56 @@ var initQuery string
 
 func (c *SQLite) init(ctx context.Context) error {
 	_, err := c.db.ExecContext(ctx, initQuery)
-	return err
+	if err != nil {
+		return err
+	}
+	return c.migrate(ctx)
+}
+
+func (c *SQLite) migrate(ctx context.Context) error {
+	migrations := []struct {
+		table, column, colType string
+	}{
+		{"messages", "media_type", "TEXT"},
+		{"messages", "media_content", "BLOB"},
+		{"messages", "media_size", "INTEGER"},
+		{"messages", "media_truncated", "INTEGER"},
+	}
+
+	for _, m := range migrations {
+		if err := c.migrateAddColumn(ctx, m.table, m.column, m.colType); err != nil {
+			return fmt.Errorf("migrating column %s.%s: %w", m.table, m.column, err)
+		}
+	}
+	return nil
+}
+
+func (c *SQLite) migrateAddColumn(ctx context.Context, table, column, colType string) error {
+	rows, err := c.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return fmt.Errorf("querying table info: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notnull, pk int
+		var dfltValue sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+			return fmt.Errorf("scanning table info: %w", err)
+		}
+		if name == column {
+			return nil // column already exists
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating table info: %w", err)
+	}
+
+	_, err = c.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, colType))
+	if err != nil {
+		return fmt.Errorf("adding column: %w", err)
+	}
+	return nil
 }

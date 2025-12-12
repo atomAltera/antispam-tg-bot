@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(auto-memory:memory-processor)",
+      "Bash(find:*)",
+      "Bash(make lint:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": false
+}

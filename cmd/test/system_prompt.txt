@@ -15,6 +15,9 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - offers of some bot/service which searches for intimate partners.
 - offers of some bot/service which searches for nude photos or videos.
 - homoglyph spam (e.g. using Latin 'a' instead of Cyrillic 'а' in Russian words) and unicode obfuscation.
+- vague calls to action without context (e.g. "click here, I'll explain everything") designed to lure users into private messages.
+- mass tagging or mentioning multiple random usernames (often to spread spam or gain attention).
+- messages asking to write to obfuscated usernames (e.g. using Latin letters that look like Cyrillic).
 
 
 EXAMPLES OF SPAM MESSAGES:
@@ -40,6 +43,10 @@ EXAMPLES OF SPAM MESSAGES:
 - 🎁 ПОДНЯЛ ПОЧТИ 3 ЛЯМА! 👍 СТАВЛЮ ЛАЙК, ЭТОМУ КАЗУ. 👉 ССЫЛКА
 - 😳САМЫЙ ЛУЧШИЙ КАЗ!! 🔥ПРОТО ОГОНЬ. ➡️ CCЫЛОЧКА.
 - 8 миллионов в собаках 🤯 👹 Играю тут - https://tele.ws/LuckyCasino
+- ЖМИТЕ СЮДА —  все объясню
+- ПИШИ JlLexy
+- Привет  @zagflush @rodneysabellicoEykyJ310 @zagflush @rodneysabellicoEykyJ310
+- Жмите, все объясню
 
 WORKFLOW:
 

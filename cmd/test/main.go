@@ -60,7 +60,7 @@ func main() {
 
 	llm := ai.NewOpenAI(opts.OpenAIKey, http.DefaultClient)
 
-	messages, err := db.ListMessages(ctx, time.Now().Add(time.Hour*24*30*-1))
+	messages, err := db.ListMessages(ctx, time.Now().Add(time.Hour*24*10*-1))
 	if err != nil {
 		log.Error("listing messages from database", "error", err)
 		os.Exit(1)
