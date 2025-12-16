@@ -10,13 +10,12 @@ type User struct {
 }
 
 type Message struct {
-	Sender         User
-	ID             string
-	Text           string
-	MediaType      *string // MIME type, nil if no attachment
-	MediaContent   []byte  // Binary content, nil if truncated or no attachment
-	MediaSize      *int64  // Original size in bytes
-	MediaTruncated bool    // True if content > 1MB and not stored
+	Sender      User
+	ID          string
+	Text        string
+	MediaType   *string // MIME type, nil if no attachment
+	MediaFileID *string // Telegram file ID (permanent, used for on-demand download)
+	MediaSize   *int64  // Original size in bytes
 }
 
 type SavedMessage struct {
@@ -28,9 +27,10 @@ type SavedMessage struct {
 	ActionNote     *string
 	Error          *string
 	MediaType      *string
-	MediaContent   []byte
+	MediaFileID    *string // Telegram file ID (new)
+	MediaContent   []byte  // Deprecated: kept for backwards compat with old data
 	MediaSize      *int64
-	MediaTruncated bool
+	MediaTruncated bool // Deprecated: kept for backwards compat with old data
 }
 
 func (m *Message) HasText() bool {

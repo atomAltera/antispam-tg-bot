@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +16,7 @@ import (
 
 	_ "embed"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jessevdk/go-flags"
 	"nuclight.org/antispam-tg-bot/app/storage"
 	"nuclight.org/antispam-tg-bot/pkg/ai"
@@ -22,8 +25,9 @@ import (
 )
 
 var opts struct {
-	DBPath    string `long:"db-path" env:"DB_PATH" required:"true" description:"path to the sqlite database file"`
-	OpenAIKey string `long:"ai-key" env:"OPENAI_KEY" required:"true" description:"ai api key"`
+	DBPath      string `long:"db-path" env:"DB_PATH" required:"true" description:"path to the sqlite database file"`
+	OpenAIKey   string `long:"ai-key" env:"OPENAI_KEY" required:"true" description:"ai api key"`
+	TelegramKey string `long:"tg-key" env:"TELEGRAM_KEY" description:"telegram bot api key (optional, for image analysis)"`
 }
 
 //go:embed system_prompt.txt
@@ -59,6 +63,16 @@ func main() {
 	}()
 
 	llm := ai.NewOpenAI(opts.OpenAIKey, http.DefaultClient)
+
+	var downloader *mediaDownloader
+	if opts.TelegramKey != "" {
+		downloader, err = newMediaDownloader(opts.TelegramKey)
+		if err != nil {
+			log.Error("creating media downloader", "error", err)
+			os.Exit(1)
+		}
+		log.Info("telegram media downloader enabled")
+	}
 
 	messages, err := db.ListMessages(ctx, time.Now().Add(time.Hour*24*10*-1))
 	if err != nil {
@@ -99,7 +113,7 @@ func main() {
 		wg.Add(1)
 		go func(batch []e.SavedMessage) {
 			defer wg.Done()
-			checkBatch(ctx, log, llm, batch)
+			checkBatch(ctx, log, llm, downloader, batch)
 		}(unique[start:end])
 	}
 
@@ -115,7 +129,7 @@ func main() {
 	os.Exit(0)
 }
 
-func checkBatch(ctx context.Context, log logger.Logger, llm *ai.OpenAI, batch []e.SavedMessage) {
+func checkBatch(ctx context.Context, log logger.Logger, llm *ai.OpenAI, downloader *mediaDownloader, batch []e.SavedMessage) {
 	for _, msg := range batch {
 		if n := atomic.AddInt64(&processed, 1) + 1; n%10 == 0 {
 			log.Debug("processing message", "n", n)
@@ -130,8 +144,39 @@ func checkBatch(ctx context.Context, log logger.Logger, llm *ai.OpenAI, batch []
 			wasSpam = true
 		}
 
+		text := msg.Text
+		if text == "" {
+			text = "(no text, analyze image only)"
+		}
+
 		var checkResult ai.SpamCheck
-		_, err := llm.GetJSONCompletion(ctx, prompt, msg.Text, ai.SpamCheckFormat, &checkResult)
+		var err error
+
+		// Try to use image analysis if media is available and supported
+		var mediaContent []byte
+		var mediaType string
+		if msg.MediaType != nil && ai.IsVisionSupported(*msg.MediaType) {
+			mediaType = *msg.MediaType
+			// Try downloading from Telegram (new: file_id)
+			if downloader != nil && msg.MediaFileID != nil {
+				mediaContent, err = downloader.DownloadFile(ctx, *msg.MediaFileID)
+				if err != nil {
+					log.Warn("downloading media from telegram", "error", err, "file_id", *msg.MediaFileID)
+					mediaContent = nil
+				}
+			}
+			// Fall back to stored content (old messages)
+			if mediaContent == nil && len(msg.MediaContent) > 0 && !msg.MediaTruncated {
+				mediaContent = msg.MediaContent
+			}
+		}
+
+		if len(mediaContent) > 0 {
+			_, err = llm.GetJSONCompletionWithImage(ctx, prompt, text, mediaContent, mediaType, ai.SpamCheckFormat, &checkResult)
+		} else {
+			_, err = llm.GetJSONCompletion(ctx, prompt, text, ai.SpamCheckFormat, &checkResult)
+		}
+
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				log.Info("context canceled, stopping")
@@ -172,4 +217,47 @@ func checkBatch(ctx context.Context, log logger.Logger, llm *ai.OpenAI, batch []
 
 func normalize(text string) string {
 	return strings.TrimSpace(strings.ToLower(text))
+}
+
+// mediaDownloader downloads media files from Telegram by file ID
+type mediaDownloader struct {
+	bot *tgbotapi.BotAPI
+}
+
+func newMediaDownloader(token string) (*mediaDownloader, error) {
+	bot, err := tgbotapi.NewBotAPI(token)
+	if err != nil {
+		return nil, fmt.Errorf("creating bot api: %w", err)
+	}
+	return &mediaDownloader{bot: bot}, nil
+}
+
+func (d *mediaDownloader) DownloadFile(ctx context.Context, fileID string) ([]byte, error) {
+	file, err := d.bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
+	if err != nil {
+		return nil, fmt.Errorf("getting file: %w", err)
+	}
+
+	fileURL := file.Link(d.bot.Token)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("downloading file: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading file: %w", err)
+	}
+
+	return content, nil
 }

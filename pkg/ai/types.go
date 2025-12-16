@@ -16,8 +16,20 @@ type Request struct {
 }
 
 type Message struct {
-	Role    Role   `json:"role"`
-	Content string `json:"content"`
+	Role    Role `json:"role"`
+	Content any  `json:"content"` // string or []ContentPart
+}
+
+// ContentPart represents a part of a multi-modal message (text or image)
+type ContentPart struct {
+	Type     string    `json:"type"`                // "text" or "image_url"
+	Text     string    `json:"text,omitempty"`      // for type="text"
+	ImageURL *ImageURL `json:"image_url,omitempty"` // for type="image_url"
+}
+
+type ImageURL struct {
+	URL    string `json:"url"`              // "data:image/jpeg;base64,..." or URL
+	Detail string `json:"detail,omitempty"` // "low", "high", or "auto" (default)
 }
 
 type Role string
@@ -51,9 +63,15 @@ type Usage struct {
 }
 
 type Choice struct {
-	Index        int          `json:"index"`
-	Message      Message      `json:"message"`
-	FinishReason FinishReason `json:"finish_reason"`
+	Index        int             `json:"index"`
+	Message      ResponseMessage `json:"message"`
+	FinishReason FinishReason    `json:"finish_reason"`
+}
+
+// ResponseMessage is the message format returned by the API (content is always string)
+type ResponseMessage struct {
+	Role    Role   `json:"role"`
+	Content string `json:"content"`
 }
 
 type FinishReason string

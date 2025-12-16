@@ -3,7 +3,12 @@
     "allow": [
       "Skill(auto-memory:memory-processor)",
       "Bash(find:*)",
-      "Bash(make lint:*)"
+      "Bash(make lint:*)",
+      "mcp__brave__brave_web_search",
+      "WebFetch(domain:platform.openai.com)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_close",
+      "Bash(gofmt:*)"
     ]
   },
   "enableAllProjectMcpServers": false

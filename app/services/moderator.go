@@ -34,14 +34,20 @@ type ModeratingSrv struct {
 
 	// AI is an AI client
 	AI AIClient
+
+	// MediaDownloader downloads media content by file ID (on-demand)
+	MediaDownloader MediaDownloader
 }
 
 // HandleMessage handles a message, it takes a message, reviews it and returns an action to be taken
 // based on the score system. It returns an action and an error if something goes wrong. Returned
 // action has to be considered even if error is not nil.
 func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
-	if has := msg.HasText(); !has {
-		// TODO: support non-text messages
+	hasText := msg.HasText()
+	hasAnalyzableMedia := msg.HasMedia() && msg.MediaFileID != nil
+
+	if !hasText && !hasAnalyzableMedia {
+		// Nothing to analyze: no text and no analyzable media
 		return noop, nil
 	}
 
@@ -82,7 +88,7 @@ func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Act
 }
 
 func (s *ModeratingSrv) getAction(ctx context.Context, score int, msg e.Message) (e.Action, int, error) {
-	report, err := s.checkSpam(ctx, msg.Text)
+	report, err := s.checkSpam(ctx, msg)
 	if err != nil {
 		return noop, 0, fmt.Errorf("checking spam: %w", err)
 	}
@@ -105,9 +111,30 @@ func (s *ModeratingSrv) getAction(ctx context.Context, score int, msg e.Message)
 	}, -1, nil
 }
 
-func (s *ModeratingSrv) checkSpam(ctx context.Context, text string) (ai.SpamCheck, error) {
+func (s *ModeratingSrv) checkSpam(ctx context.Context, msg e.Message) (ai.SpamCheck, error) {
 	var check ai.SpamCheck
-	_, err := s.AI.GetJSONCompletion(ctx, prompt, text, ai.SpamCheckFormat, &check)
+	var err error
+
+	text := msg.Text
+	if text == "" {
+		text = "(no text, analyze image only)"
+	}
+
+	// Use image analysis if media is present and supported by vision API
+	canAnalyzeImage := msg.HasMedia() && msg.MediaFileID != nil && ai.IsVisionSupported(*msg.MediaType)
+
+	if canAnalyzeImage {
+		// Download media content on-demand
+		var mediaContent []byte
+		mediaContent, err = s.MediaDownloader.DownloadFile(ctx, *msg.MediaFileID)
+		if err != nil {
+			return check, fmt.Errorf("downloading media: %w", err)
+		}
+		_, err = s.AI.GetJSONCompletionWithImage(ctx, prompt, text, mediaContent, *msg.MediaType, ai.SpamCheckFormat, &check)
+	} else {
+		_, err = s.AI.GetJSONCompletion(ctx, prompt, text, ai.SpamCheckFormat, &check)
+	}
+
 	if err != nil {
 		return check, fmt.Errorf("getting completion: %w", err)
 	}
@@ -142,6 +169,11 @@ type MessagesStore interface {
 
 type AIClient interface {
 	GetJSONCompletion(ctx context.Context, system, user string, rf ai.ResponseFormat, result any) (*ai.Usage, error)
+	GetJSONCompletionWithImage(ctx context.Context, system, user string, image []byte, mimeType string, rf ai.ResponseFormat, result any) (*ai.Usage, error)
+}
+
+type MediaDownloader interface {
+	DownloadFile(ctx context.Context, fileID string) ([]byte, error)
 }
 
 var noop = e.Action{
