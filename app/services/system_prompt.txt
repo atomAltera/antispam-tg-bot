@@ -16,7 +16,7 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - offers of some bot/service which searches for nude photos or videos.
 - homoglyph spam (e.g. using Latin 'a' instead of Cyrillic 'а' in Russian words) and unicode obfuscation.
 - vague calls to action without context (e.g. "click here, I'll explain everything") designed to lure users into private messages.
-- mass tagging or mentioning multiple random usernames (often to spread spam or gain attention).
+- mass tagging or mentioning multiple random usernames, BUT ONLY when the message itself is very short (e.g. just "hello" or a greeting followed by many mentions). If the message contains meaningful content beyond the mentions, it is NOT spam.
 - messages asking to write to obfuscated usernames (e.g. using Latin letters that look like Cyrillic).
 
 
