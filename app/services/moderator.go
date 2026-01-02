@@ -44,10 +44,13 @@ type ModeratingSrv struct {
 // action has to be considered even if error is not nil.
 func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
 	hasText := msg.HasText()
-	hasAnalyzableMedia := msg.HasMedia() && msg.MediaFileID != nil
+	hasAnalyzableMedia := msg.HasMedia() &&
+		msg.MediaFileID != nil &&
+		msg.MediaType != nil &&
+		ai.IsVisionSupported(*msg.MediaType)
 
 	if !hasText && !hasAnalyzableMedia {
-		// Nothing to analyze: no text and no analyzable media
+		// Nothing to analyze: no text and no analyzable media (or unsupported media type)
 		return noop, nil
 	}
 
