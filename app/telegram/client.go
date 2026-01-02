@@ -74,7 +74,6 @@ func (c *Client) handleUpdatesFromChan(ctx context.Context, tgUpdatesChan tgbota
 			err := c.handleUpdate(ctx, tgUpdate)
 			if err != nil {
 				c.Log.Error("handling update", "tg_update_id", tgUpdate.UpdateID, "error", err)
-				sentry.CaptureException(err)
 			}
 		}
 	}

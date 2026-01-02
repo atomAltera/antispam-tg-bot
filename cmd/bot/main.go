@@ -32,10 +32,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	log := logger.NewLogger()
-	log.Info("starting bot", "dev_mode", opts.DevMode)
-
-	// Initialize Sentry if DSN is provided
+	// Initialize Sentry first if DSN is provided
+	sentryEnabled := false
 	if opts.SentryDSN != "" {
 		env := "production"
 		if opts.DevMode {
@@ -46,13 +44,21 @@ func main() {
 			Dsn:         opts.SentryDSN,
 			Environment: env,
 		})
-		if err != nil {
-			log.Error("initializing sentry", "error", err)
-		} else {
-			log.Info("sentry initialized", "environment", env)
+		if err == nil {
+			sentryEnabled = true
 			defer sentry.Flush(2 * time.Second)
 		}
 	}
+
+	// Create logger with Sentry integration if enabled
+	var log logger.Logger
+	if sentryEnabled {
+		log = logger.NewLoggerWithSentry()
+	} else {
+		log = logger.NewLogger()
+	}
+
+	log.Info("starting bot", "dev_mode", opts.DevMode, "sentry", sentryEnabled)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

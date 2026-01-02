@@ -16,3 +16,12 @@ func NewLogger() Logger {
 		TimeFormat: time.TimeOnly,
 	}))
 }
+
+// NewLoggerWithSentry creates a logger that auto-reports errors to Sentry
+func NewLoggerWithSentry() Logger {
+	tintHandler := tint.NewHandler(os.Stderr, &tint.Options{
+		Level:      slog.LevelDebug,
+		TimeFormat: time.TimeOnly,
+	})
+	return slog.New(NewSentryHandler(tintHandler))
+}
