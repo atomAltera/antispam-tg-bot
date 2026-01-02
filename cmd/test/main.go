@@ -157,17 +157,12 @@ func checkBatch(ctx context.Context, log logger.Logger, llm *ai.OpenAI, download
 		var mediaType string
 		if msg.MediaType != nil && ai.IsVisionSupported(*msg.MediaType) {
 			mediaType = *msg.MediaType
-			// Try downloading from Telegram (new: file_id)
 			if downloader != nil && msg.MediaFileID != nil {
 				mediaContent, err = downloader.DownloadFile(ctx, *msg.MediaFileID)
 				if err != nil {
 					log.Warn("downloading media from telegram", "error", err, "file_id", *msg.MediaFileID)
 					mediaContent = nil
 				}
-			}
-			// Fall back to stored content (old messages)
-			if mediaContent == nil && len(msg.MediaContent) > 0 && !msg.MediaTruncated {
-				mediaContent = msg.MediaContent
 			}
 		}
 

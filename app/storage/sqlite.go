@@ -111,7 +111,7 @@ func (c *SQLite) ListMessages(ctx context.Context, fromDate time.Time) ([]e.Save
 		ctx,
 		`SELECT m.id, m.message_id, m.chat_id, m.sender_user_id, m.sender_user_name, m.text,
 		        m.created_at, m.action, m.action_note, m.error,
-		        m.media_type, m.media_file_id, m.media_content, m.media_size, m.media_truncated
+		        m.media_type, m.media_file_id, m.media_size
 		 FROM messages AS m
 		 WHERE m.created_at >= ?
 		 ORDER BY m.created_at DESC`,
@@ -125,7 +125,6 @@ func (c *SQLite) ListMessages(ctx context.Context, fromDate time.Time) ([]e.Save
 	var messages []e.SavedMessage
 	for rows.Next() {
 		var msg e.SavedMessage
-		var mediaTruncated sql.NullBool
 		err = rows.Scan(
 			&msg.ID,
 			&msg.Sender.ID,
@@ -139,14 +138,11 @@ func (c *SQLite) ListMessages(ctx context.Context, fromDate time.Time) ([]e.Save
 			&msg.Error,
 			&msg.MediaType,
 			&msg.MediaFileID,
-			&msg.MediaContent,
 			&msg.MediaSize,
-			&mediaTruncated,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scanning message: %w", err)
 		}
-		msg.MediaTruncated = mediaTruncated.Valid && mediaTruncated.Bool
 		messages = append(messages, msg)
 	}
 
@@ -195,10 +191,8 @@ func (c *SQLite) migrate(ctx context.Context) error {
 		table, column, colType string
 	}{
 		{"messages", "media_type", "TEXT"},
-		{"messages", "media_content", "BLOB"}, // Deprecated: kept for backwards compat
 		{"messages", "media_size", "INTEGER"},
-		{"messages", "media_truncated", "INTEGER"}, // Deprecated: kept for backwards compat
-		{"messages", "media_file_id", "TEXT"},      // New: permanent Telegram file ID
+		{"messages", "media_file_id", "TEXT"},
 	}
 
 	for _, m := range migrations {

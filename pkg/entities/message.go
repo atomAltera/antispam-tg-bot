@@ -19,18 +19,16 @@ type Message struct {
 }
 
 type SavedMessage struct {
-	Sender         User
-	ID             string
-	Text           string
-	CreatedAt      time.Time
-	Action         *ActionKind
-	ActionNote     *string
-	Error          *string
-	MediaType      *string
-	MediaFileID    *string // Telegram file ID (new)
-	MediaContent   []byte  // Deprecated: kept for backwards compat with old data
-	MediaSize      *int64
-	MediaTruncated bool // Deprecated: kept for backwards compat with old data
+	Sender      User
+	ID          string
+	Text        string
+	CreatedAt   time.Time
+	Action      *ActionKind
+	ActionNote  *string
+	Error       *string
+	MediaType   *string
+	MediaFileID *string
+	MediaSize   *int64
 }
 
 func (m *Message) HasText() bool {
