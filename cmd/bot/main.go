@@ -64,6 +64,7 @@ func main() {
 		DevMode:    opts.DevMode,
 		Handler:    moderatingSrv,
 	}
+	moderatingSrv.MediaDownloader = bot
 
 	err = bot.Start(ctx)
 	if err != nil {
