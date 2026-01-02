@@ -121,9 +121,12 @@ func (s *ModeratingSrv) checkSpam(ctx context.Context, msg e.Message) (ai.SpamCh
 	}
 
 	// Use image analysis if media is present and supported by vision API
-	canAnalyzeImage := msg.HasMedia() && msg.MediaFileID != nil && ai.IsVisionSupported(*msg.MediaType)
+	analyzeImage := msg.HasMedia() &&
+		msg.MediaFileID != nil &&
+		msg.MediaType != nil &&
+		ai.IsVisionSupported(*msg.MediaType)
 
-	if canAnalyzeImage {
+	if analyzeImage {
 		// Download media content on-demand
 		var mediaContent []byte
 		mediaContent, err = s.MediaDownloader.DownloadFile(ctx, *msg.MediaFileID)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -82,7 +83,7 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) err
 
 	defer func() {
 		if err := recover(); err != nil {
-			log.Error("panic", "error", err)
+			log.Error("panic", "error", err, "stack", string(debug.Stack()))
 		}
 	}()
 
@@ -120,7 +121,7 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) err
 		"tg_user_last_name", tgMsg.From.LastName,
 		"tg_chat_id", tgMsg.Chat.ID,
 		"tg_chat_title", tgMsg.Chat.Title,
-		"text", tgMsg.Text,
+		"text", takeText(tgMsg),
 	)
 
 	if tgMsg.IsCommand() {
