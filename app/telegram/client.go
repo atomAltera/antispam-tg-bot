@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/getsentry/sentry-go"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
 	"nuclight.org/antispam-tg-bot/pkg/logger"
@@ -73,6 +74,7 @@ func (c *Client) handleUpdatesFromChan(ctx context.Context, tgUpdatesChan tgbota
 			err := c.handleUpdate(ctx, tgUpdate)
 			if err != nil {
 				c.Log.Error("handling update", "tg_update_id", tgUpdate.UpdateID, "error", err)
+				sentry.CaptureException(err)
 			}
 		}
 	}
@@ -84,6 +86,7 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) err
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("panic", "error", err, "stack", string(debug.Stack()))
+			sentry.CurrentHub().Recover(err)
 		}
 	}()
 

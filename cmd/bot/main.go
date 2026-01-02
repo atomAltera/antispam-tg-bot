@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/jessevdk/go-flags"
 	"nuclight.org/antispam-tg-bot/app/services"
 	"nuclight.org/antispam-tg-bot/app/storage"
@@ -20,6 +22,7 @@ var opts struct {
 	TelegramWorkersNum int    `long:"telegram-workers-num" env:"TELEGRAM_WORKERS_NUM" default:"5" description:"number of workers for telegram bot"`
 	DBPath             string `long:"db-path" env:"DB_PATH" required:"true" description:"path to the sqlite database file"`
 	OpenAIKey          string `long:"ai-key" env:"OPENAI_KEY" required:"true" description:"ai api key"`
+	SentryDSN          string `long:"sentry-dsn" env:"SENTRY_DSN" description:"sentry DSN for error monitoring (optional)"`
 	DevMode            bool   `long:"dev-mode" env:"DEV_MODE" description:"enable dev mode"`
 }
 
@@ -31,6 +34,25 @@ func main() {
 
 	log := logger.NewLogger()
 	log.Info("starting bot", "dev_mode", opts.DevMode)
+
+	// Initialize Sentry if DSN is provided
+	if opts.SentryDSN != "" {
+		env := "production"
+		if opts.DevMode {
+			env = "development"
+		}
+		err = sentry.Init(sentry.ClientOptions{
+			ServerName:  "antispam-tg-bot",
+			Dsn:         opts.SentryDSN,
+			Environment: env,
+		})
+		if err != nil {
+			log.Error("initializing sentry", "error", err)
+		} else {
+			log.Info("sentry initialized", "environment", env)
+			defer sentry.Flush(2 * time.Second)
+		}
+	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
