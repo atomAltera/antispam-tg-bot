@@ -181,55 +181,5 @@ var initQuery string
 
 func (c *SQLite) init(ctx context.Context) error {
 	_, err := c.db.ExecContext(ctx, initQuery)
-	if err != nil {
-		return err
-	}
-	return c.migrate(ctx)
-}
-
-func (c *SQLite) migrate(ctx context.Context) error {
-	migrations := []struct {
-		table, column, colType string
-	}{
-		{"messages", "media_type", "TEXT"},
-		{"messages", "media_size", "INTEGER"},
-		{"messages", "media_file_id", "TEXT"},
-	}
-
-	for _, m := range migrations {
-		if err := c.migrateAddColumn(ctx, m.table, m.column, m.colType); err != nil {
-			return fmt.Errorf("migrating column %s.%s: %w", m.table, m.column, err)
-		}
-	}
-	return nil
-}
-
-func (c *SQLite) migrateAddColumn(ctx context.Context, table, column, colType string) error {
-	rows, err := c.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
-	if err != nil {
-		return fmt.Errorf("querying table info: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var cid int
-		var name, ctype string
-		var notnull, pk int
-		var dfltValue sql.NullString
-		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
-			return fmt.Errorf("scanning table info: %w", err)
-		}
-		if name == column {
-			return nil // column already exists
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterating table info: %w", err)
-	}
-
-	_, err = c.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, colType))
-	if err != nil {
-		return fmt.Errorf("adding column: %w", err)
-	}
-	return nil
+	return err
 }

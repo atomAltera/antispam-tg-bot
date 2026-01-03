@@ -10,7 +10,8 @@
       "mcp__playwright__browser_close",
       "Bash(gofmt:*)",
       "Bash(tree:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "mcp__gopls__go_diagnostics"
     ]
   },
   "enableAllProjectMcpServers": false
