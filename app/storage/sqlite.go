@@ -28,6 +28,7 @@ func NewSQLite(ctx context.Context, filePath string) (*SQLite, error) {
 
 	err = client.init(ctx)
 	if err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("initializing sqlite3 database: %w", err)
 	}
 

@@ -8,7 +8,9 @@
       "WebFetch(domain:platform.openai.com)",
       "mcp__playwright__browser_navigate",
       "mcp__playwright__browser_close",
-      "Bash(gofmt:*)"
+      "Bash(gofmt:*)",
+      "Bash(tree:*)",
+      "Bash(grep:*)"
     ]
   },
   "enableAllProjectMcpServers": false
