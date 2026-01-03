@@ -60,6 +60,14 @@ func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Act
 	}
 
 	if score >= s.TrustedScore {
+		if score > s.TrustedScore {
+			// Adjust score down to the trusted score
+			err = s.ScoreStore.SetScore(ctx, msg.Sender, s.TrustedScore)
+			if err != nil {
+				return noop, fmt.Errorf("setting user score to trusted: %w", err)
+			}
+		}
+
 		return noop, nil
 	}
 
