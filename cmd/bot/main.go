@@ -79,7 +79,7 @@ func main() {
 	moderatingSrv := &services.ModeratingSrv{
 		DefaultScore:  0,
 		TrustedScore:  6,
-		BanScore:      -4,
+		BanScore:      -2,
 		ScoreStore:    db,
 		MessagesStore: db,
 		AI:            openAIClient,
