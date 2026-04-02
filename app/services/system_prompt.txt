@@ -18,6 +18,8 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - vague calls to action without context (e.g. "click here, I'll explain everything") designed to lure users into private messages.
 - mass tagging or mentioning multiple random usernames, BUT ONLY when the message itself is very short (e.g. just "hello" or a greeting followed by many mentions). If the message contains meaningful content beyond the mentions, it is NOT spam.
 - messages asking to write to obfuscated usernames (e.g. using Latin letters that look like Cyrillic).
+- domestic or personal task offers with vague payment promises (e.g. "need someone to mow the lawn, will pay" or "help me move, will compensate") — these are often scam lures.
+- informal work-for-pay solicitations seeking people for small tasks or gigs in exchange for money.
 
 
 EXAMPLES OF SPAM MESSAGES:
@@ -47,6 +49,8 @@ EXAMPLES OF SPAM MESSAGES:
 - ПИШИ JlLexy
 - Привет  @zagflush @rodneysabellicoEykyJ310 @zagflush @rodneysabellicoEykyJ310
 - Жмите, все объясню
+- Нужnо подстричь газон на участке, займет это пару часов, територия небольшая, накормлю и отблагодарю деньгами
+- Нужен человек помочь с переездом на пару часов, оплачу
 
 WORKFLOW:
 
