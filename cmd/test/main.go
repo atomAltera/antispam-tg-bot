@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,12 +14,12 @@ import (
 
 	_ "embed"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jessevdk/go-flags"
 	"nuclight.org/antispam-tg-bot/app/storage"
 	"nuclight.org/antispam-tg-bot/pkg/ai"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
 	"nuclight.org/antispam-tg-bot/pkg/logger"
+	"nuclight.org/antispam-tg-bot/pkg/tg"
 )
 
 var opts struct {
@@ -216,43 +214,13 @@ func normalize(text string) string {
 
 // mediaDownloader downloads media files from Telegram by file ID
 type mediaDownloader struct {
-	bot *tgbotapi.BotAPI
+	client *tg.Client
 }
 
 func newMediaDownloader(token string) (*mediaDownloader, error) {
-	bot, err := tgbotapi.NewBotAPI(token)
-	if err != nil {
-		return nil, fmt.Errorf("creating bot api: %w", err)
-	}
-	return &mediaDownloader{bot: bot}, nil
+	return &mediaDownloader{client: tg.NewClient(token, nil)}, nil
 }
 
 func (d *mediaDownloader) DownloadFile(ctx context.Context, fileID string) ([]byte, error) {
-	file, err := d.bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
-	if err != nil {
-		return nil, fmt.Errorf("getting file: %w", err)
-	}
-
-	fileURL := file.Link(d.bot.Token)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("downloading file: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading file: %w", err)
-	}
-
-	return content, nil
+	return d.client.DownloadFile(ctx, fileID)
 }

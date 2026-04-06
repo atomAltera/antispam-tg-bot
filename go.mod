@@ -4,7 +4,6 @@ go 1.24.1
 
 require (
 	github.com/getsentry/sentry-go v0.40.0
-	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/lmittmann/tint v1.0.7
 	github.com/mattn/go-sqlite3 v1.14.28

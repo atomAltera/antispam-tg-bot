@@ -3,17 +3,16 @@ package telegram
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"runtime/debug"
+	"time"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/getsentry/sentry-go"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
 	"nuclight.org/antispam-tg-bot/pkg/logger"
+	"nuclight.org/antispam-tg-bot/pkg/tg"
 )
 
 type MessageHandler interface {
@@ -27,8 +26,9 @@ type Client struct {
 	DevMode    bool
 	Handler    MessageHandler
 
-	bot *tgbotapi.BotAPI
-	wg  sync.WaitGroup
+	api         *tg.Client
+	updatesChan chan tg.Update
+	wg          sync.WaitGroup
 }
 
 func (c *Client) Start(ctx context.Context) (err error) {
@@ -38,23 +38,25 @@ func (c *Client) Start(ctx context.Context) (err error) {
 
 	log := c.Log
 
-	c.bot, err = tgbotapi.NewBotAPI(c.APIToken)
+	c.api = tg.NewClient(c.APIToken, nil)
+
+	me, err := c.api.GetMe(ctx)
 	if err != nil {
-		return fmt.Errorf("creating bot api: %w", err)
+		return fmt.Errorf("getting bot info: %w", err)
 	}
 
-	log.Info("bot api created", "username", c.bot.Self.UserName)
+	log.Info("bot api created", "username", me.UserName)
 
-	tgUpdatesConf := tgbotapi.NewUpdate(0)
-	tgUpdatesConf.Timeout = 60
+	c.updatesChan = make(chan tg.Update)
 
-	tgUpdatesChan := c.bot.GetUpdatesChan(tgUpdatesConf)
+	c.wg.Add(1)
+	go c.pollUpdates(ctx)
 
 	for i := 0; i < c.WorkersNum; i++ {
 		c.wg.Add(1)
 		go func() {
 			defer c.wg.Done()
-			c.handleUpdatesFromChan(ctx, tgUpdatesChan)
+			c.handleUpdatesFromChan(ctx)
 		}()
 	}
 
@@ -65,12 +67,41 @@ func (c *Client) Wait() {
 	c.wg.Wait()
 }
 
-func (c *Client) handleUpdatesFromChan(ctx context.Context, tgUpdatesChan tgbotapi.UpdatesChannel) {
+func (c *Client) pollUpdates(ctx context.Context) {
+	defer c.wg.Done()
+	offset := 0
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case tgUpdate := <-tgUpdatesChan:
+		default:
+		}
+		updates, err := c.api.GetUpdates(ctx, offset, 60)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			c.Log.Error("getting updates", "error", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		for _, update := range updates {
+			offset = update.UpdateID + 1
+			select {
+			case c.updatesChan <- update:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}
+}
+
+func (c *Client) handleUpdatesFromChan(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case tgUpdate := <-c.updatesChan:
 			err := c.handleUpdate(ctx, tgUpdate)
 			if err != nil {
 				c.Log.Error("handling update", "tg_update_id", tgUpdate.UpdateID, "error", err)
@@ -79,7 +110,7 @@ func (c *Client) handleUpdatesFromChan(ctx context.Context, tgUpdatesChan tgbota
 	}
 }
 
-func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) error {
+func (c *Client) handleUpdate(ctx context.Context, tgUpdate tg.Update) error {
 	log := c.Log.With("tg_update_id", tgUpdate.UpdateID)
 
 	defer func() {
@@ -144,7 +175,7 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) err
 	}
 
 	if mi := getMediaInfo(tgMsg); mi != nil {
-		mimeType, fileID, size, err := c.getMediaMetadata(mi)
+		mimeType, fileID, size, err := c.getMediaMetadata(ctx, mi)
 		if err != nil {
 			log.Error("getting media metadata", "error", err)
 		} else {
@@ -169,19 +200,37 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tgbotapi.Update) err
 
 }
 
-func takeText(msg *tgbotapi.Message) string {
-	if msg.Text != "" {
-		return msg.Text
+func takeText(msg *tg.Message) string {
+	text := msg.Text
+	if text == "" {
+		text = msg.Caption
 	}
 
-	if msg.Caption != "" {
-		return msg.Caption
+	// Extract quoted text from reply (Bot API 7.0+ TextQuote)
+	if msg.Quote != nil && msg.Quote.Text != "" {
+		text = appendQuoted(text, msg.Quote.Text)
+	} else if msg.ReplyToMessage != nil {
+		// Fallback: use the full reply message text
+		quoted := msg.ReplyToMessage.Text
+		if quoted == "" {
+			quoted = msg.ReplyToMessage.Caption
+		}
+		if quoted != "" {
+			text = appendQuoted(text, quoted)
+		}
 	}
 
-	return ""
+	return text
 }
 
-func (c *Client) applyAction(ctx context.Context, tgUpdateID int, tgMsg *tgbotapi.Message, act e.Action) error {
+func appendQuoted(text, quoted string) string {
+	if text != "" {
+		return text + "\n\n[quoted message]:\n" + quoted
+	}
+	return "[quoted message]:\n" + quoted
+}
+
+func (c *Client) applyAction(ctx context.Context, tgUpdateID int, tgMsg *tg.Message, act e.Action) error {
 	log := c.Log.With("tg_update_id", tgUpdateID)
 
 	switch act.Kind {
@@ -215,40 +264,21 @@ func (c *Client) applyAction(ctx context.Context, tgUpdateID int, tgMsg *tgbotap
 
 }
 
-func (c *Client) eraseMessage(_ context.Context, tgMsg *tgbotapi.Message) error {
-	conf := tgbotapi.NewDeleteMessage(tgMsg.Chat.ID, tgMsg.MessageID)
-	_, err := c.bot.Request(conf)
-	return err
+func (c *Client) eraseMessage(ctx context.Context, tgMsg *tg.Message) error {
+	return c.api.DeleteMessage(ctx, tgMsg.Chat.ID, tgMsg.MessageID)
 }
 
-func (c *Client) banUser(_ context.Context, userID int64, chatID int64) error {
-	conf := tgbotapi.BanChatMemberConfig{
-		ChatMemberConfig: tgbotapi.ChatMemberConfig{
-			ChatID: chatID,
-			UserID: userID,
-		},
-		UntilDate:      0,
-		RevokeMessages: false,
-	}
-	_, err := c.bot.Request(conf)
-	return err
+func (c *Client) banUser(ctx context.Context, userID int64, chatID int64) error {
+	return c.api.BanChatMember(ctx, chatID, userID)
 }
 
-func (c *Client) replyPrivate(_ context.Context, tgMsg *tgbotapi.Message) error {
-	msg := tgbotapi.NewMessage(
-		tgMsg.Chat.ID,
+func (c *Client) replyPrivate(ctx context.Context, tgMsg *tg.Message) error {
+	return c.api.SendMessage(ctx, tgMsg.Chat.ID,
 		"Hello, I can help you with spam moderation in your group.\n"+
-			"Please add me to your group as admin with ability to delete messages",
-	)
-
-	msg.ParseMode = tgbotapi.ModeHTML
-	msg.DisableWebPagePreview = true
-
-	_, err := c.bot.Send(msg)
-	return err
+			"Please add me to your group as admin with ability to delete messages")
 }
 
-func takeMessage(update tgbotapi.Update) *tgbotapi.Message {
+func takeMessage(update tg.Update) *tg.Message {
 	if update.Message != nil {
 		return update.Message
 	}
@@ -268,19 +298,19 @@ func takeMessage(update tgbotapi.Update) *tgbotapi.Message {
 	return nil
 }
 
-func takeMessageID(message *tgbotapi.Message) string {
+func takeMessageID(message *tg.Message) string {
 	return strconv.Itoa(message.MessageID)
 }
 
-func takeChatID(chat *tgbotapi.Chat) string {
+func takeChatID(chat *tg.Chat) string {
 	return strconv.FormatInt(chat.ID, 10)
 }
 
-func takeUserID(user *tgbotapi.User) string {
+func takeUserID(user *tg.User) string {
 	return strconv.FormatInt(user.ID, 10)
 }
 
-func takeUserName(user *tgbotapi.User) string {
+func takeUserName(user *tg.User) string {
 	var sb strings.Builder
 
 	if user.FirstName != "" {
@@ -319,7 +349,7 @@ type mediaInfo struct {
 	mimeType string
 }
 
-func getMediaInfo(msg *tgbotapi.Message) *mediaInfo {
+func getMediaInfo(msg *tg.Message) *mediaInfo {
 	if len(msg.Photo) > 0 {
 		// Get largest photo (last in array)
 		photo := msg.Photo[len(msg.Photo)-1]
@@ -345,8 +375,8 @@ func getMediaInfo(msg *tgbotapi.Message) *mediaInfo {
 }
 
 // getMediaMetadata returns metadata about the media without downloading content
-func (c *Client) getMediaMetadata(info *mediaInfo) (mimeType *string, fileID *string, size *int64, err error) {
-	file, err := c.bot.GetFile(tgbotapi.FileConfig{FileID: info.fileID})
+func (c *Client) getMediaMetadata(ctx context.Context, info *mediaInfo) (mimeType *string, fileID *string, size *int64, err error) {
+	file, err := c.api.GetFile(ctx, info.fileID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("getting file info: %w", err)
 	}
@@ -357,31 +387,5 @@ func (c *Client) getMediaMetadata(info *mediaInfo) (mimeType *string, fileID *st
 
 // DownloadFile downloads file content by file ID (on-demand)
 func (c *Client) DownloadFile(ctx context.Context, fileID string) ([]byte, error) {
-	file, err := c.bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
-	if err != nil {
-		return nil, fmt.Errorf("getting file: %w", err)
-	}
-
-	fileURL := file.Link(c.bot.Token)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("downloading file: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading file: %w", err)
-	}
-
-	return content, nil
+	return c.api.DownloadFile(ctx, fileID)
 }
