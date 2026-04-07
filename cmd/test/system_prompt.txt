@@ -18,6 +18,7 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - vague calls to action without context (e.g. "click here, I'll explain everything") designed to lure users into private messages.
 - mass tagging or mentioning multiple random usernames, BUT ONLY when the message itself is very short (e.g. just "hello" or a greeting followed by many mentions). If the message contains meaningful content beyond the mentions, it is NOT spam.
 - messages asking to write to obfuscated usernames (e.g. using Latin letters that look like Cyrillic).
+- offers of VPN services or promotion of VPN bots/channels.
 
 
 EXAMPLES OF SPAM MESSAGES:
