@@ -20,6 +20,7 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - messages asking to write to obfuscated usernames (e.g. using Latin letters that look like Cyrillic).
 - domestic or personal task offers with vague payment promises (e.g. "need someone to mow the lawn, will pay" or "help me move, will compensate") — these are often scam lures.
 - informal work-for-pay solicitations seeking people for small tasks or gigs in exchange for money.
+- fake chat migration or impersonation of chat administration (e.g. "chat moved to a new place", "join the new chat", "problems with moderation account") with suspicious links — these are phishing attempts to redirect users to malicious resources.
 
 
 EXAMPLES OF SPAM MESSAGES:
@@ -51,6 +52,7 @@ EXAMPLES OF SPAM MESSAGES:
 - Жмите, все объясню
 - Нужnо подстричь газон на участке, займет это пару часов, територия небольшая, накормлю и отблагодарю деньгами
 - Нужен человек помочь с переездом на пару часов, оплачу
+- ‼️ Чат переехал в другое место из-за проблем с доступом к аккаунту модерации. Переходим все в актуальный чат! Жмите на сообщение, чтобы зайти 👇 Зайти 👉 https://tsss.me/q14Yqjq4
 
 IMPORTANT: Messages may include a "[quoted message]:" section which contains
 the text of a message the user replied to. You MUST analyze the quoted message
