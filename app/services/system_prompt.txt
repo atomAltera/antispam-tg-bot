@@ -21,6 +21,8 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - domestic or personal task offers with vague payment promises (e.g. "need someone to mow the lawn, will pay" or "help me move, will compensate") — these are often scam lures.
 - informal work-for-pay solicitations seeking people for small tasks or gigs in exchange for money.
 - fake chat migration or impersonation of chat administration (e.g. "chat moved to a new place", "join the new chat", "problems with moderation account") with suspicious links — these are phishing attempts to redirect users to malicious resources.
+- VPN or proxy service promotions — offering free or paid VPN, proxy bots, or tools to bypass internet restrictions (e.g. "free VPN for Telegram", "bypasses RKN blocks", "works even with white lists"). These often impersonate well-known brands (NordVPN, Proton VPN, Windscribe) or promote Telegram bots.
+- fake testimonials or shill replies to spam — short enthusiastic messages praising a service from a quoted spam message (e.g. "Спасибо за ВПН!! Работает!!", "Хороший магазин", "Единственный рабочий впн"). These are coordinated replies meant to make the quoted spam look legitimate.
 
 
 EXAMPLES OF SPAM MESSAGES:
@@ -30,10 +32,10 @@ EXAMPLES OF SPAM MESSAGES:
 - 1000р на карту, напишешь
 - У нас множество вакансий! Пишите сюда
 - Реальные способы заработать без больших усилий
-- Продаю 2 билета на концерт Джастина Тимберлейка 23 июля в Тбилиси по лояльному ценнику
+- Продаю 2 билета на концерт по лояльному ценнику
 - Срочно нужны люди в новый проект. От 18 лет — пиши в лс
-- Продаю 4 билета по 80 лари в VIP-ложу на концерт Валерия Меладзе, пиши в личку за деталями
-- В наличии 4 билета в VIP на концерт Валерия Меладзе в Батуми по привлекательно низкой цене относительно конкурентов!
+- Продаю 4 билета в VIP-ложу на концерт, пиши в личку за деталями
+- В наличии 4 билета в VIP на концерт по привлекательно низкой цене относительно конкурентов!
 - Привeт, нyжно буквально 2 человека. Можно заработывать с дома имея тeлeфoн или кoмпьютер.
 - Нужен лёгкий заработок от 200$ в день? Пишите мне в л.с. буду очень рада вам помочь
 - Отличное дополнение к вашему доходу от 300 долларов в неделю. Готовы взять ещё 5 человек. Можно без опыта. Все детали в личных
@@ -41,18 +43,22 @@ EXAMPLES OF SPAM MESSAGES:
 - ИЩУ ПЕРСПЕКТИВНЫХ ЛЮДЕЙ ДЛЯ COTPУДНИЧЕCTBA! Высокий стабильный доход 150-250$ в день. Свободный график 2-3 часа в день
 - Работай где угодно, получай деньги, не выходя из дома
 - Продам белеты на концерт Рамштайн
-- Есть билеты на концерт Рамштайн. Пишите в личку
+- Есть билеты на концерт. Пишите в личку
 - Куплю u.s.d.t, по хорошему курсу. Личная встреча. Работаю с любой суммой.
-- 🎁 ПОДНЯЛ ПОЧТИ 3 ЛЯМА! 👍 СТАВЛЮ ЛАЙК, ЭТОМУ КАЗУ. 👉 ССЫЛКА
-- 😳САМЫЙ ЛУЧШИЙ КАЗ!! 🔥ПРОТО ОГОНЬ. ➡️ CCЫЛОЧКА.
-- 8 миллионов в собаках 🤯 👹 Играю тут - https://tele.ws/LuckyCasino
-- ЖМИТЕ СЮДА —  все объясню
+- ПОДНЯЛ ПОЧТИ 3 ЛЯМА! СТАВЛЮ ЛАЙК, ЭТОМУ КАЗУ. ССЫЛКА
+- САМЫЙ ЛУЧШИЙ КАЗ!! ПРОТО ОГОНЬ. CCЫЛОЧКА.
+- 8 миллионов в собаках. Играю тут - ссылка
+- ЖМИТЕ СЮДА — все объясню
 - ПИШИ JlLexy
-- Привет  @zagflush @rodneysabellicoEykyJ310 @zagflush @rodneysabellicoEykyJ310
+- Привет @zagflush @rodneysabellicoEykyJ310 @zagflush @rodneysabellicoEykyJ310
 - Жмите, все объясню
 - Нужnо подстричь газон на участке, займет это пару часов, територия небольшая, накормлю и отблагодарю деньгами
 - Нужен человек помочь с переездом на пару часов, оплачу
-- ‼️ Чат переехал в другое место из-за проблем с доступом к аккаунту модерации. Переходим все в актуальный чат! Жмите на сообщение, чтобы зайти 👇 Зайти 👉 https://tsss.me/q14Yqjq4
+- Чат переехал в другое место из-за проблем с доступом к аккаунту модерации. Переходим все в актуальный чат! Жмите на сообщение, чтобы зайти
+- Бесплатный и быстрый VPN для Telegram. Работает даже при блокировках от РКН! Подписывайтесь на наш канал!
+- Proton VPN - лидер на рынке впн и теперь вы можете получить доступ к нему бесплатно! Работает в РФ с обходом белых списков, РКН, ТСПУ. Получите доступ сейчас
+- Спасибо вам за ВПН!! Телеграм с ним просто летает [quoted message]: Бесплатный и быстрый VPN для Telegram
+- Хороший ВПН!! Теперь пользуюсь [quoted message]: Бесплатный и быстрый VPN для Telegram
 
 IMPORTANT: Messages may include a "[quoted message]:" section which contains
 the text of a message the user replied to. You MUST analyze the quoted message
