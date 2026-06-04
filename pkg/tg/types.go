@@ -60,6 +60,9 @@ type Message struct {
 	Video     *Video      `json:"video,omitempty"`
 	Document  *Document   `json:"document,omitempty"`
 	Sticker   *Sticker    `json:"sticker,omitempty"`
+
+	// Service messages
+	NewChatMembers []*User `json:"new_chat_members,omitempty"`
 }
 
 // IsCommand returns true if the message starts with a bot command entity.

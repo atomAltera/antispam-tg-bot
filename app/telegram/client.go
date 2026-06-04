@@ -136,6 +136,11 @@ func (c *Client) handleUpdate(ctx context.Context, tgUpdate tg.Update) error {
 		return nil
 	}
 
+	if len(tgMsg.NewChatMembers) > 0 {
+		log.Info("deleting join notification", "tg_message_id", tgMsg.MessageID, "tg_chat_id", tgMsg.Chat.ID)
+		return c.eraseMessage(ctx, tgMsg)
+	}
+
 	if tgMsg.Chat.IsPrivate() && !c.DevMode {
 		log.Info("message is private")
 		err := c.replyPrivate(ctx, tgMsg)
