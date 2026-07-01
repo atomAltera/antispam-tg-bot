@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -43,6 +44,19 @@ func main() {
 			ServerName:  "antispam-tg-bot",
 			Dsn:         opts.SentryDSN,
 			Environment: env,
+			// Defense in depth: scrub the bot token from any event before it
+			// is sent, in case a new error path interpolates it.
+			BeforeSend: func(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
+				token := opts.TelegramAPIToken
+				if token == "" {
+					return event
+				}
+				event.Message = strings.ReplaceAll(event.Message, token, "<redacted>")
+				for i := range event.Exception {
+					event.Exception[i].Value = strings.ReplaceAll(event.Exception[i].Value, token, "<redacted>")
+				}
+				return event
+			},
 		})
 		if err == nil {
 			sentryEnabled = true

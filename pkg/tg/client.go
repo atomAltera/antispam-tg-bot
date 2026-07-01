@@ -3,11 +3,13 @@ package tg
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 const apiBase = "https://api.telegram.org"
@@ -94,12 +96,12 @@ func (c *Client) DownloadFile(ctx context.Context, fileID string) ([]byte, error
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+		return nil, fmt.Errorf("creating request: %w", c.redact(err))
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("downloading file: %w", err)
+		return nil, fmt.Errorf("downloading file: %w", c.redact(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -127,12 +129,12 @@ func (c *Client) call(ctx context.Context, method string, params url.Values, res
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return fmt.Errorf("creating request: %w", err)
+		return fmt.Errorf("creating request: %w", c.redact(err))
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("calling %s: %w", method, err)
+		return fmt.Errorf("calling %s: %w", method, c.redact(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -156,4 +158,18 @@ func (c *Client) call(ctx context.Context, method string, params url.Values, res
 	}
 
 	return nil
+}
+
+// redact strips the bot token from errors that embed the request URL.
+// net/http returns *url.Error with the full URL (including the token in the
+// path) on transport failures, which would otherwise leak to logs and Sentry.
+func (c *Client) redact(err error) error {
+	if err == nil || c.token == "" {
+		return err
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		urlErr.URL = strings.ReplaceAll(urlErr.URL, c.token, "<redacted>")
+	}
+	return err
 }
