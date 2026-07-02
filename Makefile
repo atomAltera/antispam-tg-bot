@@ -1,4 +1,4 @@
-DOCKER_IMAGE=registry.nuclight.org/antispam-tg-bot:latest
+DOCKER_IMAGE=atomaltera/antispam-tg-bot:latest
 
 .PHONY: lint
 lint:
@@ -15,8 +15,8 @@ docker_build:
 		--tag $(DOCKER_IMAGE) \
 		.
 
-.PHONY: docker_publish
-docker_publish: docker_build
+.PHONY: docker_push
+docker_push: docker_build
 	docker push $(DOCKER_IMAGE)
 
 .PHONY: pull_db
