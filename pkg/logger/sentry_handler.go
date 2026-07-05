@@ -2,10 +2,19 @@ package logger
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/getsentry/sentry-go"
 )
+
+// sentryAttacher is implemented by errors that carry extra payload worth
+// attaching to their Sentry event (e.g. the offending file for a media
+// format error). Kept generic (no sentry-go dependency) so lower-level
+// packages like pkg/ai don't need to import the SDK.
+type sentryAttacher interface {
+	SentryAttachment() (filename, contentType string, payload []byte)
+}
 
 // SentryHandler wraps an slog.Handler and reports errors to Sentry
 type SentryHandler struct {
@@ -29,13 +38,31 @@ func (h *SentryHandler) Handle(ctx context.Context, r slog.Record) error {
 		r.Attrs(func(a slog.Attr) bool {
 			if a.Key == "error" {
 				if err, ok := a.Value.Any().(error); ok {
-					sentry.CaptureException(err)
+					captureError(err)
 				}
 			}
 			return true
 		})
 	}
 	return h.handler.Handle(ctx, r)
+}
+
+// captureError sends err to Sentry, attaching any payload exposed via
+// sentryAttacher (checked through the error's Unwrap chain) to that event only.
+func captureError(err error) {
+	var attacher sentryAttacher
+	if errors.As(err, &attacher) {
+		filename, contentType, payload := attacher.SentryAttachment()
+		hub := sentry.CurrentHub().Clone()
+		hub.Scope().AddAttachment(&sentry.Attachment{
+			Filename:    filename,
+			ContentType: contentType,
+			Payload:     payload,
+		})
+		hub.CaptureException(err)
+		return
+	}
+	sentry.CaptureException(err)
 }
 
 // WithAttrs returns a new handler with the given attributes

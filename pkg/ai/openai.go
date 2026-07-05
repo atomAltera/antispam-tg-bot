@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type OpenAI struct {
@@ -51,6 +52,47 @@ var VisionSupportedMimeTypes = map[string]bool{
 // IsVisionSupported checks if the mime type is supported by vision API
 func IsVisionSupported(mimeType string) bool {
 	return VisionSupportedMimeTypes[mimeType]
+}
+
+// maxAttachmentSize is the largest media payload we'll carry on an
+// UnsupportedImageError for later diagnosis (e.g. as a Sentry attachment).
+const maxAttachmentSize = 5 * 1024 * 1024
+
+// UnsupportedImageError wraps a vision API failure caused by a media file
+// that doesn't actually match the declared mime type (e.g. a Telegram video
+// sticker misidentified as image/webp). It carries the original content so
+// callers can attach it somewhere for later analysis.
+type UnsupportedImageError struct {
+	err      error
+	mimeType string
+	content  []byte
+}
+
+func (e *UnsupportedImageError) Error() string { return e.err.Error() }
+func (e *UnsupportedImageError) Unwrap() error { return e.err }
+
+// SentryAttachment returns the offending media so it can be attached to an
+// error report. Implements an attacher interface understood by pkg/logger.
+func (e *UnsupportedImageError) SentryAttachment() (filename, contentType string, payload []byte) {
+	ext := e.mimeType
+	if i := strings.LastIndex(e.mimeType, "/"); i >= 0 {
+		ext = e.mimeType[i+1:]
+	}
+	return "media." + ext, e.mimeType, e.content
+}
+
+// isUnsupportedImageFormat reports whether an OpenAI error response body
+// indicates the uploaded media doesn't match a supported image format.
+func isUnsupportedImageFormat(resBody []byte) bool {
+	var apiErr struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(resBody, &apiErr); err != nil {
+		return false
+	}
+	return apiErr.Error.Code == "invalid_image_format"
 }
 
 func (c *OpenAI) getCompletion(ctx context.Context, model, system, user string, image *ImageData, rf ResponseFormat, result any) (*Usage, error) {
@@ -113,7 +155,13 @@ func (c *OpenAI) getCompletion(ctx context.Context, model, system, user string, 
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != 200 {
 		resBody, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("unexpected status code: %d: %s", res.StatusCode, resBody)
+		statusErr := fmt.Errorf("unexpected status code: %d: %s", res.StatusCode, resBody)
+
+		if image != nil && isUnsupportedImageFormat(resBody) && len(image.Content) <= maxAttachmentSize {
+			return nil, &UnsupportedImageError{err: statusErr, mimeType: image.MimeType, content: image.Content}
+		}
+
+		return nil, statusErr
 	}
 
 	body, err = io.ReadAll(res.Body)
