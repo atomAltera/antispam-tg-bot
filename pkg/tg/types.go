@@ -137,7 +137,8 @@ type Document struct {
 // Sticker represents a sticker.
 type Sticker struct {
 	FileID     string `json:"file_id"`
-	IsAnimated bool   `json:"is_animated,omitempty"`
+	IsAnimated bool   `json:"is_animated,omitempty"` // Lottie (gzipped JSON)
+	IsVideo    bool   `json:"is_video,omitempty"`    // WEBM/VP9 video
 	FileSize   int    `json:"file_size,omitempty"`
 }
 

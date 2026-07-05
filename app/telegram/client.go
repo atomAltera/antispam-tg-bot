@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-	"time"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
@@ -370,9 +370,16 @@ func getMediaInfo(msg *tg.Message) *mediaInfo {
 		return &mediaInfo{fileID: msg.Document.FileID, mimeType: msg.Document.MimeType}
 	}
 	if msg.Sticker != nil {
+		// Static stickers are real WEBP images. Animated (Lottie) stickers are
+		// gzipped JSON, and video stickers are WEBM/VP9 video - neither is a
+		// WEBP image, so label them with their true type so the vision pipeline
+		// filters or converts them instead of shipping bad bytes to OpenAI.
 		mimeType := "image/webp"
-		if msg.Sticker.IsAnimated {
+		switch {
+		case msg.Sticker.IsAnimated:
 			mimeType = "application/x-tgsticker"
+		case msg.Sticker.IsVideo:
+			mimeType = "video/webm"
 		}
 		return &mediaInfo{fileID: msg.Sticker.FileID, mimeType: mimeType}
 	}

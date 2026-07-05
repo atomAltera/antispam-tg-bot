@@ -16,6 +16,7 @@ import (
 	"nuclight.org/antispam-tg-bot/app/telegram"
 	"nuclight.org/antispam-tg-bot/pkg/ai"
 	"nuclight.org/antispam-tg-bot/pkg/logger"
+	"nuclight.org/antispam-tg-bot/pkg/media"
 )
 
 var opts struct {
@@ -91,12 +92,13 @@ func main() {
 	openAIClient := ai.NewOpenAI(opts.OpenAIKey, http.DefaultClient)
 
 	moderatingSrv := &services.ModeratingSrv{
-		DefaultScore:  0,
-		TrustedScore:  6,
-		BanScore:      -2,
-		ScoreStore:    db,
-		MessagesStore: db,
-		AI:            openAIClient,
+		DefaultScore:   0,
+		TrustedScore:   6,
+		BanScore:       -2,
+		ScoreStore:     db,
+		MessagesStore:  db,
+		AI:             openAIClient,
+		MediaConverter: media.NewFFmpegExtractor(),
 	}
 
 	bot := &telegram.Client{

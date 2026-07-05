@@ -37,6 +37,11 @@ type ModeratingSrv struct {
 
 	// MediaDownloader downloads media content by file ID (on-demand)
 	MediaDownloader MediaDownloader
+
+	// MediaConverter turns media the vision API can't decode directly
+	// (e.g. video stickers) into a still image. Optional: if nil, such
+	// media is treated as non-analyzable.
+	MediaConverter MediaConverter
 }
 
 // HandleMessage handles a message, it takes a message, reviews it and returns an action to be taken
@@ -44,10 +49,7 @@ type ModeratingSrv struct {
 // action has to be considered even if error is not nil.
 func (s *ModeratingSrv) HandleMessage(ctx context.Context, msg e.Message) (e.Action, error) {
 	hasText := msg.HasText()
-	hasAnalyzableMedia := msg.HasMedia() &&
-		msg.MediaFileID != nil &&
-		msg.MediaType != nil &&
-		ai.IsVisionSupported(*msg.MediaType)
+	hasAnalyzableMedia := s.analyzableMedia(msg)
 
 	if !hasText && !hasAnalyzableMedia {
 		// Nothing to analyze: no text and no analyzable media (or unsupported media type)
@@ -131,20 +133,43 @@ func (s *ModeratingSrv) checkSpam(ctx context.Context, msg e.Message) (ai.SpamCh
 		text = "(no text, analyze image only)"
 	}
 
-	// Use image analysis if media is present and supported by vision API
-	analyzeImage := msg.HasMedia() &&
-		msg.MediaFileID != nil &&
-		msg.MediaType != nil &&
-		ai.IsVisionSupported(*msg.MediaType)
-
-	if analyzeImage {
+	if s.analyzableMedia(msg) {
 		// Download media content on-demand
 		var mediaContent []byte
 		mediaContent, err = s.MediaDownloader.DownloadFile(ctx, *msg.MediaFileID)
 		if err != nil {
 			return check, fmt.Errorf("downloading media: %w", err)
 		}
-		_, err = s.AI.GetJSONCompletionWithImage(ctx, prompt, text, mediaContent, *msg.MediaType, ai.SpamCheckFormat, &check)
+
+		mimeType := *msg.MediaType
+		if s.canConvertMedia(msg) {
+			// Media the vision API can't decode directly (e.g. video
+			// stickers): extract a still frame and analyze that as JPEG.
+			var frame []byte
+			frame, err = s.MediaConverter.ToImage(ctx, mediaContent)
+			if err != nil {
+				// Conversion failed (corrupt media or an unavailable/broken
+				// ffmpeg). If the message has text, degrade to text-only
+				// analysis rather than skipping the spam check entirely -
+				// otherwise spam text could bypass moderation by attaching
+				// an unconvertible file. If the message is media-only there
+				// is nothing real to analyze: report the error so the
+				// failure is visible instead of scoring a placeholder.
+				if !msg.HasText() {
+					return check, fmt.Errorf("converting media to image: %w", err)
+				}
+				mediaContent = nil // err is overwritten by the text-only completion below
+			} else {
+				mediaContent = frame
+				mimeType = "image/jpeg"
+			}
+		}
+
+		if mediaContent != nil {
+			_, err = s.AI.GetJSONCompletionWithImage(ctx, prompt, text, mediaContent, mimeType, ai.SpamCheckFormat, &check)
+		} else {
+			_, err = s.AI.GetJSONCompletion(ctx, prompt, text, ai.SpamCheckFormat, &check)
+		}
 	} else {
 		_, err = s.AI.GetJSONCompletion(ctx, prompt, text, ai.SpamCheckFormat, &check)
 	}
@@ -154,6 +179,38 @@ func (s *ModeratingSrv) checkSpam(ctx context.Context, msg e.Message) (ai.SpamCh
 	}
 
 	return check, nil
+}
+
+// maxConvertibleMediaSize bounds media we're willing to download and run
+// through the MediaConverter. Telegram video stickers are capped at 256 KB,
+// so this comfortably covers them while refusing to fetch and ffmpeg large
+// video/webm documents or videos that merely share the same mime type.
+const maxConvertibleMediaSize = 512 * 1024
+
+// analyzableMedia reports whether the message carries media the bot can send
+// to the vision pipeline - either a format the vision API supports directly,
+// or one the MediaConverter can turn into a still image.
+func (s *ModeratingSrv) analyzableMedia(msg e.Message) bool {
+	if !msg.HasMedia() || msg.MediaFileID == nil || msg.MediaType == nil {
+		return false
+	}
+	return ai.IsVisionSupported(*msg.MediaType) || s.canConvertMedia(msg)
+}
+
+// canConvertMedia reports whether a MediaConverter is configured, able to
+// convert the message's mime type, and the media is small enough to be worth
+// downloading and converting. The size guard keeps a video-sticker fix from
+// pulling and processing arbitrarily large video/webm uploads.
+func (s *ModeratingSrv) canConvertMedia(msg e.Message) bool {
+	if s.MediaConverter == nil || msg.MediaType == nil {
+		return false
+	}
+	if !s.MediaConverter.CanConvert(*msg.MediaType) {
+		return false
+	}
+	// Require a known positive size: Telegram may omit file_size, which
+	// decodes as 0 and must not slip past the size guard.
+	return msg.MediaSize != nil && *msg.MediaSize > 0 && *msg.MediaSize <= maxConvertibleMediaSize
 }
 
 func (s *ModeratingSrv) getNewScore(score int, delta int) int {
@@ -188,6 +245,15 @@ type AIClient interface {
 
 type MediaDownloader interface {
 	DownloadFile(ctx context.Context, fileID string) ([]byte, error)
+}
+
+// MediaConverter turns media types the vision API can't decode directly into a
+// still JPEG image (e.g. extracting the first frame of a video sticker).
+type MediaConverter interface {
+	// CanConvert reports whether the given mime type can be converted.
+	CanConvert(mimeType string) bool
+	// ToImage returns a still JPEG image derived from the media content.
+	ToImage(ctx context.Context, content []byte) ([]byte, error)
 }
 
 var noop = e.Action{
