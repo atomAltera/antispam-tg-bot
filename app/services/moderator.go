@@ -166,12 +166,12 @@ func (s *ModeratingSrv) checkSpam(ctx context.Context, msg e.Message) (ai.SpamCh
 		}
 
 		if mediaContent != nil {
-			_, err = s.AI.GetJSONCompletionWithImage(ctx, prompt, text, mediaContent, mimeType, ai.SpamCheckFormat, &check)
+			_, err = s.AI.GetJSONCompletionWithImage(ctx, SystemPrompt, text, mediaContent, mimeType, ai.SpamCheckFormat, &check)
 		} else {
-			_, err = s.AI.GetJSONCompletion(ctx, prompt, text, ai.SpamCheckFormat, &check)
+			_, err = s.AI.GetJSONCompletion(ctx, SystemPrompt, text, ai.SpamCheckFormat, &check)
 		}
 	} else {
-		_, err = s.AI.GetJSONCompletion(ctx, prompt, text, ai.SpamCheckFormat, &check)
+		_, err = s.AI.GetJSONCompletion(ctx, SystemPrompt, text, ai.SpamCheckFormat, &check)
 	}
 
 	if err != nil {
@@ -261,5 +261,8 @@ var noop = e.Action{
 	Note: "",
 }
 
+// SystemPrompt is the spam detection prompt, exported so auxiliary tools
+// (e.g. cmd/test) always evaluate the same prompt the bot uses.
+//
 //go:embed system_prompt.txt
-var prompt string
+var SystemPrompt string

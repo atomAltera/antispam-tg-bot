@@ -3,6 +3,12 @@ A MESSAGE IS SPAM OR NOT. PLEASE REMEMBER THAT THIS IS A CHAT WHERE USERS CAN PO
 NONE INFORMATIVE MESSAGES AND MESSAGES RELATED TO MAFIA GAME (BOARD GAME),
 BUT ONLY THAT WHICH ARE DESCRIBED BELOW HAS TO BE CONSIDERED AS SPAM.
 
+MAFIA GAME CONTENT IS NEVER SPAM: announcements of Mafia game tournaments,
+events, and clubs (including participation fees, prize funds, venues,
+registration contacts, e.g. FIIM / iMafia federations) are allowed content,
+NOT spam. Generic "promotional content" or "advertisement" is NOT a spam
+category by itself — only the specific categories listed below count.
+
 SPAM MESSAGES ARE MESSAGES THAT:
 - offer some kind of jobs or vacancies.
 - offer to join to some projects.

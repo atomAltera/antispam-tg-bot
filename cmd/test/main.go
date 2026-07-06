@@ -12,9 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	_ "embed"
-
 	"github.com/jessevdk/go-flags"
+	"nuclight.org/antispam-tg-bot/app/services"
 	"nuclight.org/antispam-tg-bot/app/storage"
 	"nuclight.org/antispam-tg-bot/pkg/ai"
 	e "nuclight.org/antispam-tg-bot/pkg/entities"
@@ -28,8 +27,8 @@ var opts struct {
 	TelegramKey string `long:"tg-key" env:"TELEGRAM_KEY" description:"telegram bot api key (optional, for image analysis)"`
 }
 
-//go:embed system_prompt.txt
-var prompt string
+// Use the exact prompt the bot ships with so the replay tests reality.
+var prompt = services.SystemPrompt
 
 var wg sync.WaitGroup
 var processed int64
