@@ -13,7 +13,12 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - offer some kind of jobs or vacancies.
 - offer to join to some projects.
 - offer or sell concert tickets.
-- offer to by or sell cryptocurrency or NFTs.
+- offer to buy or sell cryptocurrency, stablecoins or NFTs. This INCLUDES buy-side messages phrased as a
+  personal intention rather than an advertisement ("планирую купить трц 20 на большую сумму, по цене
+  договоримся", "интересует покупка", "куплю u.s.d.t по хорошему курсу, личная встреча"): a stranger
+  announcing they want to buy crypto in a mafia chat is a solicitation, not a personal note. The asset and
+  network names are routinely obfuscated and must be decoded rather than ignored - "трц 20", "трцц20",
+  "трк20", "ТРЦ20" all mean TRC20, and "юздт", "Teзззр", "тезр", "u.s.d.t" all mean USDT.
 - offers of casino or gambling.
 - offers of adult services.
 - offers of loans or financial services.
@@ -26,6 +31,17 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - messages asking to write to obfuscated usernames (e.g. using Latin letters that look like Cyrillic).
 - domestic or personal task offers with vague payment promises (e.g. "need someone to mow the lawn, will pay" or "help me move, will compensate") — these are often scam lures.
 - informal work-for-pay solicitations seeking people for small tasks or gigs in exchange for money.
+- slang-coded gig offers: quick-money solicitations written entirely in jargon, usually as a few short
+  broken lines, that combine (a) a coded reference to money ("пара хрустящих", "зелень", "бумага",
+  "косарь", "полторашка", "15 за сутки") with (b) a promise that it takes almost no time ("пара чэсиков",
+  "пара часиков", "за час", "легкие действия", "заход простой") and (c) a bare call to act ("двигайся",
+  "влетай", "залетай", "погнали", "черкани"). The deliberate vagueness IS the signal: such a message is
+  spam even when it never names a sum, a task, a contact, or a link. Courier-style errands offered to
+  strangers belong here too ("нужны пару смелых ребят", "нужно раскидать клады").
+  No individual word grants an exemption here: "движуха", "движ", "тема", "заход" occur in both spam and
+  normal chat. A message is allowed when it carries concrete game context - a named club, tournament,
+  date, table, roles, or an invitation to actually play - AND carries no promise of payment for little
+  effort. It is spam when that payment promise is there, however it is worded.
 - fake chat migration or impersonation of chat administration (e.g. "chat moved to a new place", "join the new chat", "problems with moderation account") with suspicious links — these are phishing attempts to redirect users to malicious resources.
 - VPN or proxy service promotions — offering free or paid VPN, proxy bots, or tools to bypass internet restrictions (e.g. "free VPN for Telegram", "bypasses RKN blocks", "works even with white lists"). These often impersonate well-known brands (NordVPN, Proton VPN, Windscribe) or promote Telegram bots.
 - fake testimonials or shill replies to spam — short enthusiastic messages praising a service from a quoted spam message (e.g. "Спасибо за ВПН!! Работает!!", "Хороший магазин", "Единственный рабочий впн"). These are coordinated replies meant to make the quoted spam look legitimate.
@@ -63,6 +79,14 @@ EXAMPLES OF SPAM MESSAGES:
 - Чат переехал в другое место из-за проблем с доступом к аккаунту модерации. Переходим все в актуальный чат! Жмите на сообщение, чтобы зайти
 - Бесплатный и быстрый VPN для Telegram. Работает даже при блокировках от РКН! Подписывайтесь на наш канал!
 - Proton VPN - лидер на рынке впн и теперь вы можете получить доступ к нему бесплатно! Работает в РФ с обходом белых списков, РКН, ТСПУ. Получите доступ сейчас
+- движуха огненная / пара хрустящих / пара чэсиков / двигайся
+- Йо, пацан / не зависай / тут уже полный движ / заход простой / держим 15 за сутки / залетай
+- Доброе утро, на сегодня и завтра потребуется пару смелых ребят, нужно раскидать клады
+- Серая мутка на 10-50к
+- Всем привет планирую купить трц 20 на большую сумму, по цене договоримся
+- Салют интересует покупка трц 20 на большую сумму, по цене договоримся
+- быстрый подсоб / 150 баксав / легкие действия / влетай
+- слушай сюда, есть простая тема, что надо порвать за час / 150 зелени в руки без базара / черкани прямо сейчас
 - Спасибо вам за ВПН!! Телеграм с ним просто летает [quoted message]: Бесплатный и быстрый VPN для Telegram
 - Хороший ВПН!! Теперь пользуюсь [quoted message]: Бесплатный и быстрый VPN для Telegram
 

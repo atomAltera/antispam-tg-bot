@@ -25,6 +25,9 @@ var opts struct {
 	DBPath      string `long:"db-path" env:"DB_PATH" required:"true" description:"path to the sqlite database file"`
 	OpenAIKey   string `long:"ai-key" env:"OPENAI_KEY" required:"true" description:"ai api key"`
 	TelegramKey string `long:"tg-key" env:"TELEGRAM_KEY" description:"telegram bot api key (optional, for image analysis)"`
+	Model       string `long:"model" env:"MODEL" description:"model to replay with (default: the model the bot ships with)"`
+	Days        int    `long:"days" env:"DAYS" default:"10" description:"how many days of message history to replay"`
+	Workers     int    `long:"workers" env:"WORKERS" default:"10" description:"concurrent replay workers; lower it for models with tight rate limits"`
 }
 
 // Use the exact prompt the bot ships with so the replay tests reality.
@@ -60,6 +63,7 @@ func main() {
 	}()
 
 	llm := ai.NewOpenAI(opts.OpenAIKey, http.DefaultClient)
+	llm.Model = opts.Model // empty keeps the model the bot ships with
 
 	var downloader *mediaDownloader
 	if opts.TelegramKey != "" {
@@ -71,13 +75,13 @@ func main() {
 		log.Info("telegram media downloader enabled")
 	}
 
-	messages, err := db.ListMessages(ctx, time.Now().Add(time.Hour*24*10*-1))
+	messages, err := db.ListMessages(ctx, time.Now().AddDate(0, 0, -opts.Days))
 	if err != nil {
 		log.Error("listing messages from database", "error", err)
 		os.Exit(1)
 	}
 
-	log.Info("messages loaded from database", "count", len(messages))
+	log.Info("messages loaded from database", "count", len(messages), "days", opts.Days, "model", llm.ModelName())
 
 	dedup := make(map[string]struct{}, len(messages))
 	unique := make([]e.SavedMessage, 0, len(messages))
@@ -93,7 +97,10 @@ func main() {
 		unique = append(unique, msg)
 	}
 
-	const workers = 10
+	workers := opts.Workers
+	if workers < 1 {
+		workers = 1
+	}
 
 	batchSize := (len(unique) + workers - 1) / workers
 

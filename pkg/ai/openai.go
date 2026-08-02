@@ -8,12 +8,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type OpenAI struct {
 	apiKey     string
 	httpClient HTTPClient
+
+	// Model overrides the model used for completions. Empty (the default)
+	// means DefaultModel/VisionModel are used. Exists so auxiliary tools
+	// (e.g. cmd/test) can A/B another model against the one the bot ships
+	// with, without touching the constants.
+	Model string
 }
 
 func NewOpenAI(apiKey string, httpClient HTTPClient) *OpenAI {
@@ -24,7 +32,21 @@ func NewOpenAI(apiKey string, httpClient HTTPClient) *OpenAI {
 }
 
 func (c *OpenAI) GetJSONCompletion(ctx context.Context, system, user string, rf ResponseFormat, result any) (*Usage, error) {
-	return c.getCompletion(ctx, DefaultModel, system, user, nil, rf, result)
+	return c.getCompletion(ctx, c.modelOr(DefaultModel), system, user, nil, rf, result)
+}
+
+// ModelName reports the model text completions will use: the override when set,
+// otherwise DefaultModel. Lets callers log which model a run actually used.
+func (c *OpenAI) ModelName() string {
+	return c.modelOr(DefaultModel)
+}
+
+// modelOr returns the configured Model override, or def when none is set.
+func (c *OpenAI) modelOr(def string) string {
+	if c.Model != "" {
+		return c.Model
+	}
+	return def
 }
 
 // GetJSONCompletionWithImage sends a request with both text and image to the vision model
@@ -33,7 +55,7 @@ func (c *OpenAI) GetJSONCompletionWithImage(ctx context.Context, system, user st
 		Content:  image,
 		MimeType: mimeType,
 	}
-	return c.getCompletion(ctx, VisionModel, system, user, imageData, rf, result)
+	return c.getCompletion(ctx, c.modelOr(VisionModel), system, user, imageData, rf, result)
 }
 
 type ImageData struct {
@@ -95,6 +117,111 @@ func isUnsupportedImageFormat(resBody []byte) bool {
 	return apiErr.Error.Code == "invalid_image_format"
 }
 
+// maxAttempts bounds how many times a single completion is tried. Transient
+// failures (429 rate limits, 5xx server errors) used to surface as an error
+// that the moderator turns into a noop - i.e. spam silently stayed in the chat
+// whenever OpenAI hiccuped.
+const maxAttempts = 4
+
+// baseRetryDelay is the first backoff step; it doubles per attempt unless the
+// response carries a Retry-After hint. A variable so tests can shrink it.
+var baseRetryDelay = time.Second
+
+// isRetryable reports whether a status code is worth another attempt: rate
+// limits and server-side errors are transient, everything else (bad request,
+// auth, unsupported image) will fail identically no matter how often we retry.
+func isRetryable(status int) bool {
+	return status == http.StatusTooManyRequests || status >= 500
+}
+
+// retryAfter extracts the server's requested delay, falling back to exponential
+// backoff. attempt is zero-based.
+func retryAfter(res *http.Response, attempt int) time.Duration {
+	if v := res.Header.Get("Retry-After"); v != "" {
+		if secs, err := strconv.Atoi(v); err == nil && secs >= 0 {
+			return time.Duration(secs) * time.Second
+		}
+	}
+	return baseRetryDelay << attempt
+}
+
+// sleep waits for d, or aborts early if the context is cancelled.
+func sleep(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+// send posts the request body, retrying transient failures, and returns the
+// raw response body on success.
+func (c *OpenAI) send(ctx context.Context, body []byte, image *ImageData) ([]byte, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			"https://api.openai.com/v1/chat/completions",
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("creating request: %w", err)
+		}
+
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+		req.Header.Set("Content-Type", "application/json")
+
+		res, err := c.httpClient.Do(req)
+		if err != nil {
+			// Transport-level failures (connection reset, timeout) are
+			// transient too, so they get the same treatment as a 5xx.
+			lastErr = fmt.Errorf("doing request: %w", err)
+			if attempt == maxAttempts-1 {
+				break
+			}
+			if err := sleep(ctx, baseRetryDelay<<attempt); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		resBody, readErr := io.ReadAll(res.Body)
+		_ = res.Body.Close()
+
+		if res.StatusCode == 200 {
+			if readErr != nil {
+				return nil, fmt.Errorf("reading response body: %w", readErr)
+			}
+			return resBody, nil
+		}
+
+		statusErr := fmt.Errorf("unexpected status code: %d: %s", res.StatusCode, resBody)
+
+		if image != nil && isUnsupportedImageFormat(resBody) && len(image.Content) <= maxAttachmentSize {
+			return nil, &UnsupportedImageError{err: statusErr, mimeType: image.MimeType, content: image.Content}
+		}
+
+		if !isRetryable(res.StatusCode) {
+			return nil, statusErr
+		}
+
+		lastErr = statusErr
+		if attempt == maxAttempts-1 {
+			break
+		}
+		if err := sleep(ctx, retryAfter(res, attempt)); err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, fmt.Errorf("after %d attempts: %w", maxAttempts, lastErr)
+}
+
 func (c *OpenAI) getCompletion(ctx context.Context, model, system, user string, image *ImageData, rf ResponseFormat, result any) (*Usage, error) {
 	var userContent any
 	if image != nil {
@@ -134,39 +261,9 @@ func (c *OpenAI) getCompletion(ctx context.Context, model, system, user string, 
 		return nil, fmt.Errorf("marshaling body: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		"https://api.openai.com/v1/chat/completions",
-		bytes.NewReader(body),
-	)
+	body, err = c.send(ctx, body, image)
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
-	req.Header.Set("Content-Type", "application/json")
-
-	res, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("doing request: %w", err)
-	}
-
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode != 200 {
-		resBody, _ := io.ReadAll(res.Body)
-		statusErr := fmt.Errorf("unexpected status code: %d: %s", res.StatusCode, resBody)
-
-		if image != nil && isUnsupportedImageFormat(resBody) && len(image.Content) <= maxAttachmentSize {
-			return nil, &UnsupportedImageError{err: statusErr, mimeType: image.MimeType, content: image.Content}
-		}
-
-		return nil, statusErr
-	}
-
-	body, err = io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response body: %w", err)
+		return nil, err
 	}
 
 	var response Response
