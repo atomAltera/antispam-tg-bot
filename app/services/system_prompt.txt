@@ -45,6 +45,7 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - fake chat migration or impersonation of chat administration (e.g. "chat moved to a new place", "join the new chat", "problems with moderation account") with suspicious links — these are phishing attempts to redirect users to malicious resources.
 - VPN or proxy service promotions — offering free or paid VPN, proxy bots, or tools to bypass internet restrictions (e.g. "free VPN for Telegram", "bypasses RKN blocks", "works even with white lists"). These often impersonate well-known brands (NordVPN, Proton VPN, Windscribe) or promote Telegram bots.
 - fake testimonials or shill replies to spam — short enthusiastic messages praising a service from a quoted spam message (e.g. "Спасибо за ВПН!! Работает!!", "Хороший магазин", "Единственный рабочий впн"). These are coordinated replies meant to make the quoted spam look legitimate.
+- "found wallet/item" bait posts (e.g. "Найден кошелек, отдам лично в руки, владелец найдись!") whose photo stages a wallet, card, or document with a crypto recovery/seed phrase deliberately left legible (a numbered word list, often labeled "Trust Wallet" or similar) — these are honeypots baiting the viewer into importing the phrase to "recover" fake found crypto, not genuine lost-and-found posts.
 
 
 EXAMPLES OF SPAM MESSAGES:
