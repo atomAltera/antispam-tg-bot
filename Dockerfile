@@ -1,4 +1,4 @@
-FROM golang:1.24-bullseye as build
+FROM golang:1.24-bookworm as build
 
 WORKDIR /opt
 
@@ -13,7 +13,7 @@ COPY . .
 
 RUN CGO_ENABLED=1 go build -o /opt/build/antispam-tg-bot nuclight.org/antispam-tg-bot/cmd/bot
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
