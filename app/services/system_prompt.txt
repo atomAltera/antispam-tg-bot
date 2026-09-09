@@ -46,6 +46,11 @@ SPAM MESSAGES ARE MESSAGES THAT:
 - VPN or proxy service promotions — offering free or paid VPN, proxy bots, or tools to bypass internet restrictions (e.g. "free VPN for Telegram", "bypasses RKN blocks", "works even with white lists"). These often impersonate well-known brands (NordVPN, Proton VPN, Windscribe) or promote Telegram bots.
 - fake testimonials or shill replies to spam — short enthusiastic messages praising a service from a quoted spam message (e.g. "Спасибо за ВПН!! Работает!!", "Хороший магазин", "Единственный рабочий впн"). These are coordinated replies meant to make the quoted spam look legitimate.
 - "found wallet/item" bait posts (e.g. "Найден кошелек, отдам лично в руки, владелец найдись!") whose photo stages a wallet, card, or document with a crypto recovery/seed phrase deliberately left legible (a numbered word list, often labeled "Trust Wallet" or similar) — these are honeypots baiting the viewer into importing the phrase to "recover" fake found crypto, not genuine lost-and-found posts.
+- drug dealer offers of a free or cheap trial sample to attract new buyers, using a small numeric
+  quantity (grams, e.g. "0.5", "1гр") together with a deliberately vague, unnamed "товар" ("goods"/
+  "product") in place of naming what is actually offered (e.g. "дам на пробу 0.5 любого товара",
+  "пробник товара бесплатно"). No legitimate business advertises unnamed "goods" by the gram with a
+  free trial dose in a chat — the combination of a gram quantity and an unnamed "товар" is the signal.
 
 
 EXAMPLES OF SPAM MESSAGES:
@@ -90,6 +95,7 @@ EXAMPLES OF SPAM MESSAGES:
 - слушай сюда, есть простая тема, что надо порвать за час / 150 зелени в руки без базара / черкани прямо сейчас
 - Спасибо вам за ВПН!! Телеграм с ним просто летает [quoted message]: Бесплатный и быстрый VPN для Telegram
 - Хороший ВПН!! Теперь пользуюсь [quoted message]: Бесплатный и быстрый VPN для Telegram
+- Дам на пробу 0.5 любого товара
 
 IMPORTANT: Messages may include a "[quoted message]:" section which contains
 the text of a message the user replied to. You MUST analyze the quoted message
